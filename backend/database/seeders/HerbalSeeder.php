@@ -1,0 +1,165 @@
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use App\Models\Herbal;
+
+class HerbalSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $plants = [
+            [
+                'slug' => 'belimbing_wuluh',
+                'name' => 'Belimbing Wuluh',
+                'scientific_name' => 'Averrhoa bilimbi L.',
+                'local_name' => 'Belimbing Sayur, Calincing Wuluh (Sunda), Blimbing Wuluh (Jawa)',
+                'description' => 'Tanaman tropis yang daun dan buahnya kaya akan senyawa flavonoid, saponin, dan tanin untuk membantu meredakan peradangan serta menjaga kestabilan gula darah.',
+                'plant_parts_used' => 'Daun segar, buah, dan bunga',
+                'traditional_usage' => 'Rebus 10 lembar daun belimbing wuluh segar dalam 2 gelas air hingga tersisa 1 gelas, saring, lalu minum hangat setelah makan.',
+                'lab_evidence' => 'Uji fitokimia dan in-vivo menunjukkan ekstrak etanol daun Averrhoa bilimbi memiliki aktivitas antihiperglikemik serta daya hambat antibakteri terhadap Staphylococcus aureus.',
+                'clinical_evidence' => 'Studi klinis terbatas pada ekstrak daun menunjukkan potensi penurunan glukosa darah postprandial, namun masih memerlukan uji skala besar lebih lanjut.',
+                'safety_warning' => 'Hindari konsumsi berlebihan pada penderita gangguan ginjal karena kandungan asam oksalat yang tinggi.',
+                'image_url' => null,
+            ],
+            [
+                'slug' => 'daun_teh',
+                'name' => 'Daun Teh',
+                'scientific_name' => 'Camellia sinensis (L.) Kuntze',
+                'local_name' => 'Teh Hijau, Enteh (Sunda), Teh (Jawa)',
+                'description' => 'Tanaman perdu penghasil daun aromatik yang kaya polifenol katekin (EGCG) sebagai antioksidan kuat, pelindung kardiovaskular, dan peningkat fokus.',
+                'plant_parts_used' => 'Pucuk daun muda dan daun segar',
+                'traditional_usage' => 'Seduh 2–3 gram daun teh kering atau segar dengan air panas bersuhu 80°C selama 3–5 menit, minum tanpa gula berlebih.',
+                'lab_evidence' => 'Kandungan Epigallocatechin gallate (EGCG) terbukti secara in-vitro menetralkan radikal bebas dan menghambat oksidasi kolesterol LDL.',
+                'clinical_evidence' => 'Meta-analisis uji klinis membuktikan konsumsi rutin Camellia sinensis membantu menurunkan tekanan darah sistolik dan memperbaiki profil lipid.',
+                'safety_warning' => 'Mengandung kafein; batasi konsumsi pada penderita GERD, insomnia, atau sensitivitas kafein.',
+                'image_url' => null,
+            ],
+            [
+                'slug' => 'jambu_biji',
+                'name' => 'Jambu Biji',
+                'scientific_name' => 'Psidium guajava L.',
+                'local_name' => 'Jambu Klutuk, Jambu Batu (Sunda), Jambu Krutuk (Jawa)',
+                'description' => 'Daun jambu biji dikenal luas sebagai antidiare alami dan pendukung pemulihan trombosit berkat tingginya kadar kuersetin dan tanin.',
+                'plant_parts_used' => 'Pucuk daun muda dan buah',
+                'traditional_usage' => 'Cuci bersih 5–7 lembar daun jambu biji muda, rebus dengan 300 ml air selama 10 menit, lalu minum air rebusannya 2 kali sehari.',
+                'lab_evidence' => 'Kuersetin pada ekstrak daun Psidium guajava terbukti menghambat motilitas berlebih pada otot polos usus serta menekan aktivitas bakteri penyebab diare.',
+                'clinical_evidence' => 'Uji klinis acak menunjukkan ekstrak daun jambu biji mempercepat pemulihan gejala diare akut non-spesifik dan membantu menjaga jumlah trombosit.',
+                'safety_warning' => 'Konsumsi berlebihan dapat memicu konstipasi (sembelit) akibat kandungan tanin yang tinggi.',
+                'image_url' => null,
+            ],
+            [
+                'slug' => 'jeruk_nipis',
+                'name' => 'Jeruk Nipis',
+                'scientific_name' => 'Citrus aurantiifolia (Christm.) Swingle',
+                'local_name' => 'Jeruk Pecel, Jeruk Tipis (Sunda), Jeruk Dlingo',
+                'description' => 'Daun dan buah jeruk nipis mengandung minyak atsiri limonene, sitral, dan flavonoid yang berperan sebagai antimikroba, antioksidan, dan pelega tenggorokan.',
+                'plant_parts_used' => 'Daun segar dan sari buah',
+                'traditional_usage' => 'Seduh 5 lembar daun jeruk nipis yang diiris tipis dengan air panas selama 10 menit, tambahkan madu murni secukupnya.',
+                'lab_evidence' => 'Minyak atsiri daun Citrus aurantiifolia menunjukkan zona hambat signifikan terhadap bakteri penyebab infeksi saluran pernapasan atas.',
+                'clinical_evidence' => 'Kombinasi senyawa flavonoid dan vitamin C mendukung fungsi imun mukosa dan meredakan batuk ringan.',
+                'safety_warning' => 'Sifat asamnya dapat mengiritasi lambung jika dikonsumsi dalam keadaan perut kosong pada penderita maag.',
+                'image_url' => null,
+            ],
+            [
+                'slug' => 'kemangi',
+                'name' => 'Kemangi',
+                'scientific_name' => 'Ocimum basilicum L.',
+                'local_name' => 'Surawung (Sunda), Kemangi (Jawa), Ruku-ruku',
+                'description' => 'Terna aromatik dengan kandungan eugenol dan linalool tinggi yang berfungsi sebagai antiinflamasi, antibakteri, serta pelindung mukosa lambung.',
+                'plant_parts_used' => 'Daun dan pucuk batang muda',
+                'traditional_usage' => 'Konsumsi langsung sebagai lalapan segar yang telah dicuci bersih atau seduh segenggam daun kemangi sebagai teh herbal.',
+                'lab_evidence' => 'Ekstrak daun Ocimum basilicum terbukti menurunkan stres oksidatif dan menghambat mediator inflamasi siklooksigenase (COX-2).',
+                'clinical_evidence' => 'Studi klinis menunjukkan ekstrak kemangi memiliki efek adaptogenik ringan dan mendukung kesehatan saluran pencernaan.',
+                'safety_warning' => 'Kandungan estragole pada minyak atsiri murni tidak dianjurkan dikonsumsi dalam dosis pekat jangka panjang oleh ibu hamil.',
+                'image_url' => null,
+            ],
+            [
+                'slug' => 'lidah_buaya',
+                'name' => 'Lidah Buaya',
+                'scientific_name' => 'Aloe vera (L.) Burm.f.',
+                'local_name' => 'Aloe Vera, Letah Buaya (Sunda), Ilat Boyo (Jawa)',
+                'description' => 'Tanaman sukulen dengan gel kaya polisakarida acemannan yang efektif mempercepat penyembuhan luka bakar ringan, iritasi kulit, dan menjaga kelembapan.',
+                'plant_parts_used' => 'Gel daging daun bagian dalam',
+                'traditional_usage' => 'Kupas kulit hijau daun lidah buaya, bilas getah kuningnya hingga bersih, lalu oleskan gel bening langsung pada area kulit yang iritasi.',
+                'lab_evidence' => 'Polisakarida acemannan pada Aloe vera terbukti merangsang proliferasi fibroblas dan sintesis kolagen secara in-vitro maupun in-vivo.',
+                'clinical_evidence' => 'Berbagai uji klinis mengonfirmasi gel lidah buaya topikal mempercepat epitelisasi luka bakar derajat satu dan dua dibanding plasebo.',
+                'safety_warning' => 'Pastikan getah kuning (lateks/aloin) di bawah kulit daun dicuci bersih sebelum digunakan karena dapat mengiritasi kulit atau memicu efek pencahar keras.',
+                'image_url' => null,
+            ],
+            [
+                'slug' => 'nangka',
+                'name' => 'Nangka',
+                'scientific_name' => 'Artocarpus heterophyllus Lam.',
+                'local_name' => 'Nangka (Sunda/Jawa), Sibodak, Lamasa',
+                'description' => 'Daun nangka mengandung prenilflavonoid dan saponin yang berpotensi membantu regulasi kadar glukosa darah serta mempercepat penyembuhan luka luar.',
+                'plant_parts_used' => 'Daun tua segar',
+                'traditional_usage' => 'Rebus 5 lembar daun nangka yang sudah tua dengan 2 gelas air hingga mendidih dan tersisa 1 gelas, minum selagi hangat.',
+                'lab_evidence' => 'Ekstrak daun Artocarpus heterophyllus menunjukkan aktivitas penghambatan enzim alfa-amilase dan peningkatan toleransi glukosa pada model uji.',
+                'clinical_evidence' => 'Evaluasi klinis awal menunjukkan efek hipoglikemik ringan pada pasien diabetes tipe 2 sebagai terapi pendamping.',
+                'safety_warning' => 'Pantau kadar gula darah secara berkala jika dikonsumsi bersamaan dengan obat antidiabetes medis untuk mencegah hipoglikemia.',
+                'image_url' => null,
+            ],
+            [
+                'slug' => 'pandan',
+                'name' => 'Pandan Wangi',
+                'scientific_name' => 'Pandanus amaryllifolius Roxb.',
+                'local_name' => 'Pandan Wangi, Pandan Rampe (Sunda), Pandan Seungit',
+                'description' => 'Daun aromatik yang mengandung alkaloid pandamarilactone, flavonoid, dan polifenol dengan efek antioksidan, penenang ringan, dan pengontrol gula darah.',
+                'plant_parts_used' => 'Daun segar',
+                'traditional_usage' => 'Ikat simpul 3–4 lembar daun pandan segar, rebus dalam 400 ml air selama 15 menit hingga harum, lalu minum sebagai teh herbal.',
+                'lab_evidence' => 'Ekstrak air daun Pandanus amaryllifolius terbukti menghambat enzim alfa-glukosidase dan menangkal radikal bebas secara signifikan.',
+                'clinical_evidence' => 'Studi klinis pada subjek sehat menunjukkan teh daun pandan membantu menekan lonjakan glukosa darah setelah makan.',
+                'safety_warning' => 'Aman dikonsumsi sebagai seduhan harian dalam takaran wajar; hindari penggunaan ekstrak pekat tanpa pengawasan medis.',
+                'image_url' => null,
+            ],
+            [
+                'slug' => 'pepaya',
+                'name' => 'Pepaya',
+                'scientific_name' => 'Carica papaya L.',
+                'local_name' => 'Gedang (Sunda), Kates (Jawa), Betik',
+                'description' => 'Daun pepaya kaya akan enzim proteolitik papain dan alkaloid karpain yang membantu melancarkan pencernaan serta mendukung respons imun.',
+                'plant_parts_used' => 'Daun muda dan sedang',
+                'traditional_usage' => 'Haluskan 2 lembar daun pepaya segar yang telah dicuci bersih dengan sedikit air matang, peras dan saring, konsumsi maksimal 2 sendok makan per hari.',
+                'lab_evidence' => 'Senyawa karpain dan flavonoid dalam Carica papaya terbukti menstabilkan membran sel darah dan memiliki aktivitas imunomodulator.',
+                'clinical_evidence' => 'Uji klinis acak terkontrol membuktikan pemberian ekstrak daun pepaya mempercepat kenaikan jumlah trombosit pada pasien demam berdarah dengue.',
+                'safety_warning' => 'Tidak dianjurkan untuk ibu hamil karena senyawa papain konsentrasi tinggi berpotensi memicu kontraksi uterus.',
+                'image_url' => null,
+            ],
+            [
+                'slug' => 'seledri',
+                'name' => 'Seledri',
+                'scientific_name' => 'Apium graveolens L.',
+                'local_name' => 'Saladri (Sunda), Sledri (Jawa), Daun Sop',
+                'description' => 'Daun dan tangkai seledri mengandung apigenin dan 3-n-butylphthalide (3nB) yang bekerja sebagai vasodilator alami untuk membantu menurunkan hipertensi ringan.',
+                'plant_parts_used' => 'Daun dan batang segar',
+                'traditional_usage' => 'Blender 50 gram daun dan batang seledri segar dengan 200 ml air matang, saring, dan minum 1 kali sehari secara teratur.',
+                'lab_evidence' => 'Senyawa 3-n-butylphthalide pada Apium graveolens terbukti merelaksasi otot polos dinding pembuluh darah dan meningkatkan ekskresi natrium.',
+                'clinical_evidence' => 'Uji klinis pada penderita hipertensi ringan hingga sedang menunjukkan penurunan bermakna pada tekanan darah sistolik dan diastolik.',
+                'safety_warning' => 'Hati-hati pada penderita hipotensi (tekanan darah rendah) dan gangguan ginjal berat karena efek diuretiknya.',
+                'image_url' => null,
+            ],
+            [
+                'slug' => 'sirih',
+                'name' => 'Sirih Hijau',
+                'scientific_name' => 'Piper betle L.',
+                'local_name' => 'Seureuh (Sunda), Suruh (Jawa), Sirih',
+                'description' => 'Tanaman merambat dengan daun kaya minyak atsiri kavikol dan hidroksikavikol yang memiliki sifat antiseptik, antijamur, dan antimikroba spektrum luas.',
+                'plant_parts_used' => 'Daun segar',
+                'traditional_usage' => 'Rebus 5 lembar daun sirih segar dalam 300 ml air hingga mendidih, dinginkan hingga hangat, lalu gunakan sebagai obat kumur atau pembersih luar.',
+                'lab_evidence' => 'Hidroksikavikol dan eugenol pada Piper betle terbukti efektif menghambat pertumbuhan bakteri rongga mulut Streptococcus mutans dan jamur Candida albicans.',
+                'clinical_evidence' => 'Uji klinis obat kumur ekstrak daun sirih menunjukkan efektivitas sebanding dengan klorheksidin dalam mengurangi plak gigi dan gingivitis ringan.',
+                'safety_warning' => 'Utamakan penggunaan luar atau sebagai obat kumur; hindari mengunyah sirih bersama pinang dan kapur secara kronis karena risiko iritasi mukosa mulut.',
+                'image_url' => null,
+            ],
+        ];
+
+        foreach ($plants as $plant) {
+            Herbal::updateOrCreate(
+                ['slug' => $plant['slug']],
+                $plant
+            );
+        }
+    }
+}
