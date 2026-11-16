@@ -2,22 +2,102 @@
 
 namespace App\Services;
 
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 class HerbalVisionService
 {
-    public function identifyPlant(string $imagePath): array
+    public function identifyPlant(string $imagePath, array $knownSpecies = []): array
     {
-        $apiKey = trim((string) (config('services.gemini.api_key') ?: env('GEMINI_API_KEY')));
-
-        if ($apiKey === '') {
-            throw new RuntimeException('GEMINI_API_KEY belum diisi di file backend/.env.');
+        if (!file_exists($imagePath)) {
+            throw new RuntimeException('File gambar tidak ditemukan di server.');
         }
 
-        [$mimeType, $base64Image] = $this->prepareCompressedImage($imagePath);
-        $prompt = $this->buildBotanicalPrompt();
+        $apiKey = config('services.gemini.key') ?: env('GEMINI_API_KEY') ?: env('GOOGLE_API_KEY');
+        if (empty($apiKey)) {
+            throw new RuntimeException('GEMINI_API_KEY belum dikonfigurasi pada file .env backend.');
+        }
+
+        $imageBinary = file_get_contents($imagePath);
+        if ($imageBinary === false) {
+            throw new RuntimeException('Gagal membaca file gambar untuk analisis.');
+        }
+
+        $base64Image = base64_encode($imageBinary);
+        $mimeType = mime_content_type($imagePath) ?: 'image/jpeg';
+
+        $knownHint = '';
+        if (!empty($knownSpecies)) {
+            $pairs = array_map(
+                fn ($item) => "{$item['name']} ({$item['scientific_name']})",
+                array_slice($knownSpecies, 0, 40)
+            );
+            $knownHint = "Daftar spesies referensi yang sudah ada di database (gunakan nama & penulisan ilmiah yang konsisten jika cocok): " . implode(', ', $pairs) . ".\n\n";
+        }
+
+        $prompt = <<<PROMPT
+Anda adalah ahli taksonomi botani dan etnofarmakologi Indonesia. Analisis foto spesimen tumbuhan ini secara teliti dan kembalikan HANYA JSON valid.
+
+{$knownHint}Aturan Identifikasi Wajib:
+1. Tentukan apakah foto menampilkan tumbuhan segar/mentah (`is_plant`: true/false).
+2. PENTING — Tumbuhan Obat Liar & Rerumputan Etnobotani Indonesia:
+   - JANGAN menolak tanaman liar, gulma kebun, atau famili Poaceae/rumput-rumputan yang dikenal dalam pengobatan tradisional Indonesia/daerah (Sunda, Jawa, Melayu, dll.), seperti:
+     * Alang-alang / Eurih (*Imperata cylindrica* — helai daun pipih panjang, tepi tajam/kasar, tulang tengah pucat, akar/rimpang obat penurun panas & diuretik)
+     * Kirinyuh / Tekelan (*Chromolaena odorata* — daun segitiga/oval bergerigi kasar, aroma khas saat diremas, obat luka & antiseptik)
+     * Meniran (*Phyllanthus niruri*), Bandotan / Babadotan (*Ageratum conyzoides*), Patikan Kebo (*Euphorbia hirta*), Pegagan / Antanan (*Centella asiatica*), Tempuyung (*Sonchus arvensis*), Rumput Mutiara (*Oldenlandia corymbosa*), Sembung (*Blumea balsamifera*), Pecut Kuda (*Stachytarpheta jamaicensis*), Ciplukan (*Physalis angulata*).
+   - Hanya tolak (`is_plant`: false) jika foto benar-benar bukan tumbuhan (manusia, hewan, benda mati), makanan/masakan matang (`is_cooked_or_processed_food`: true), atau rumput lapangan/halaman terpotong acak yang tidak memiliki ciri morfologi spesies yang dapat diidentifikasi.
+3. Jika foto menampilkan 1 hingga maksimal 5 spesies tumbuhan segar yang berbeda, identifikasi masing-masing spesies secara akurat dalam array `detected_plants`.
+4. Untuk setiap spesies yang terdeteksi:
+   - `common_name_id`: Nama umum populer dalam Bahasa Indonesia (contoh: "Alang-alang", "Kirinyuh", "Daun Sirih", "Kunyit"). WAJIB tambahkan akhiran " (Beracun)" jika tanaman tersebut beracun (contoh: "Kecubung (Beracun)", "Jarak Pagar (Beracun)", "Oleander (Beracun)").
+   - `scientific_name`: Nama ilmiah binomial/trinomial standar (contoh: "Imperata cylindrica", "Chromolaena odorata", "Piper betle").
+   - `local_name`: Sinonim nama daerah di Indonesia dipisahkan koma (sertakan nama Sunda/Jawa/lokal yang relevan, misalnya "Eurih, Ilalang, Lalang" untuk Alang-alang atau "Babadotan" untuk Bandotan).
+   - `description`: Deskripsi morfologi botani ringkas & akurat dalam Bahasa Indonesia (2-3 kalimat mencakup bentuk helai daun, tepi, pertulangan, atau batang).
+   - `plant_parts_used`: Bagian yang dimanfaatkan (contoh: "Akar dan Rimpang", "Daun", "Seluruh Bagian Tanaman", atau "Tidak untuk dikonsumsi (Beracun)").
+   - `traditional_usage`: Pemanfaatan tradisional/empiris di Indonesia dalam Bahasa Indonesia. Jika beracun, jelaskan bahayanya dan tegaskan larangan konsumsi.
+   - `lab_evidence`: Ringkasan kandungan senyawa aktif/fitokimia & temuan uji laboratorium (in vitro/in vivo).
+   - `clinical_evidence`: Ringkasan bukti klinis pada manusia jika ada (atau null jika belum ada uji klinis memadai).
+   - `safety_warning`: Peringatan keamanan, efek samping, dan kontraindikasi dalam Bahasa Indonesia.
+   - `is_toxic`: boolean (true jika beracun/toksik, false jika aman sebagai herbal/sayur).
+   - `is_confident_species`: boolean (true jika ciri daun/batang/bunga cukup jelas untuk mengenali spesiesnya).
+   - `confidence`: integer 0-100 tingkat keyakinan identifikasi.
+   - `box_2d`: koordinat bounding box `[ymin, xmin, ymax, xmax]` skala integer 0 sampai 1000 yang melingkupi tanaman tersebut pada foto.
+
+Kembalikan persis struktur JSON berikut:
+{
+  "is_plant": true,
+  "is_cooked_or_processed_food": false,
+  "rejection_reason": null,
+  "detected_plants": [
+    {
+      "common_name_id": "string",
+      "scientific_name": "string",
+      "local_name": "string",
+      "description": "string",
+      "plant_parts_used": "string",
+      "traditional_usage": "string",
+      "lab_evidence": "string",
+      "clinical_evidence": "string",
+      "safety_warning": "string",
+      "is_toxic": false,
+      "is_confident_species": true,
+      "confidence": 92,
+      "box_2d": [100, 100, 900, 900]
+    }
+  ]
+}
+PROMPT;
+
+        $configuredModel = trim((string) (config('services.gemini.model') ?: env('GEMINI_VISION_MODEL', '')));
+        $rawCandidates = [
+            ($configuredModel !== '' && !str_contains($configuredModel, '2.0-flash')) ? $configuredModel : null,
+            'gemini-2.5-flash',
+            'gemini-flash-latest',
+            'gemini-flash-lite-latest',
+            'gemini-2.5-flash-lite',
+        ];
+        $candidateModels = array_values(array_unique(array_filter($rawCandidates)));
 
         $payload = [
             'contents' => [
@@ -34,203 +114,162 @@ class HerbalVisionService
                 ],
             ],
             'generationConfig' => [
-                'temperature' => 0.1,
+                'temperature' => 0.15,
                 'responseMimeType' => 'application/json',
-                'responseSchema' => [
-                    'type' => 'OBJECT',
-                    'properties' => [
-                        'morphological_analysis' => ['type' => 'STRING'],
-                        'is_plant' => ['type' => 'BOOLEAN'],
-                        'is_medicinal_herb' => ['type' => 'BOOLEAN'],
-                        'is_toxic' => ['type' => 'BOOLEAN'],
-                        'confidence' => ['type' => 'INTEGER'],
-                        'common_name_id' => ['type' => 'STRING'],
-                        'scientific_name' => ['type' => 'STRING'],
-                        'local_name' => ['type' => 'STRING'],
-                        'description' => ['type' => 'STRING'],
-                        'plant_parts_used' => ['type' => 'STRING'],
-                        'traditional_usage' => ['type' => 'STRING'],
-                        'lab_evidence' => ['type' => 'STRING'],
-                        'clinical_evidence' => ['type' => 'STRING'],
-                        'safety_warning' => ['type' => 'STRING'],
-                    ],
-                    'required' => [
-                        'morphological_analysis',
-                        'is_plant',
-                        'is_medicinal_herb',
-                        'is_toxic',
-                        'confidence',
-                        'common_name_id',
-                        'scientific_name',
-                        'local_name',
-                        'description',
-                        'plant_parts_used',
-                        'traditional_usage',
-                        'lab_evidence',
-                        'clinical_evidence',
-                        'safety_warning',
-                    ],
-                ],
             ],
         ];
 
-        $models = [
-            'gemini-2.5-flash',
-            'gemini-3-flash-preview',
-            'gemini-flash-latest',
-            'gemini-3.1-flash-lite-preview',
-            'gemini-flash-lite-latest',
-        ];
+        $lastError = 'Layanan analisis sedang sibuk.';
+        $hadTransientBusy = false;
+        $hadConnectionReset = false;
 
-        $lastError = 'Layanan Vision AI belum merespons.';
-
-        foreach ($models as $model) {
-            $endpoint = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent";
-
+        foreach ($candidateModels as $index => $model) {
             try {
-                $response = Http::timeout(25)
+                $endpoint = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}";
+
+                $response = Http::withOptions([
+                    'force_ip_resolve' => 'v4',
+                    'version' => 1.1,
+                ])
+                    ->connectTimeout(15)
+                    ->timeout(45)
+                    ->retry(2, 600, function ($exception) {
+                        return $exception instanceof ConnectionException;
+                    }, false)
                     ->withHeaders([
-                        'x-goog-api-key' => $apiKey,
                         'Content-Type' => 'application/json',
+                        'Expect' => '',
                     ])
                     ->post($endpoint, $payload);
 
                 if ($response->successful()) {
-                    $rawText = (string) $response->json('candidates.0.content.parts.0.text', '');
-                    $parsed = $this->decodeJsonSafely($rawText);
-
-                    if (!is_array($parsed)) {
-                        $lastError = "Format JSON dari {$model} tidak valid.";
-                        continue;
+                    $rawText = (string) data_get($response->json(), 'candidates.0.content.parts.0.text', '');
+                    $parsed = $this->decodeVisionJson($rawText);
+                    if ($parsed !== null) {
+                        return $parsed;
                     }
-
-                    return $this->normalizeResult($parsed);
+                    $lastError = 'Format respons analisis tidak valid.';
+                    continue;
                 }
 
                 $status = $response->status();
-                $msg = (string) ($response->json('error.message') ?? $response->body());
-                $lastError = "HTTP {$status} ({$model}): " . mb_substr($msg, 0, 120);
+                $apiMsg = (string) data_get($response->json(), 'error.message', "HTTP {$status}");
+                Log::warning("Model {$model} gagal ({$status}): {$apiMsg}");
 
-                Log::warning("Gemini Vision {$model} dilewati", ['status' => $status, 'error' => $lastError]);
+                if (in_array($status, [429, 500, 502, 503, 504], true)) {
+                    $hadTransientBusy = true;
+                    $lastError = $apiMsg;
+                } elseif (!$hadTransientBusy) {
+                    $lastError = $apiMsg;
+                }
+
+                if ($index < count($candidateModels) - 1) {
+                    usleep(350000);
+                }
             } catch (\Throwable $e) {
-                $lastError = "Koneksi {$model} timeout: " . $e->getMessage();
-                Log::warning($lastError);
+                $msg = $e->getMessage();
+                Log::warning("Koneksi ke {$model} error: {$msg}");
+
+                if (
+                    $e instanceof ConnectionException ||
+                    str_contains(strtolower($msg), 'curl error') ||
+                    str_contains(strtolower($msg), 'recv failure')
+                ) {
+                    $hadConnectionReset = true;
+                }
+
+                if (!$hadTransientBusy) {
+                    $lastError = $msg;
+                }
+
+                if ($index < count($candidateModels) - 1) {
+                    usleep(350000);
+                }
             }
         }
 
-        throw new RuntimeException($lastError);
-    }
-
-    private function decodeJsonSafely(string $raw): ?array
-    {
-        $clean = trim($raw);
-        $decoded = json_decode($clean, true);
-        if (is_array($decoded)) {
-            return $decoded;
+        if ($hadTransientBusy || str_contains(strtolower($lastError), 'high demand') || str_contains(strtolower($lastError), 'overloaded')) {
+            throw new RuntimeException('Server analisis sedang mengalami lonjakan permintaan sementara. Tunggu beberapa detik lalu tekan Identifikasi Spesimen kembali.');
         }
 
-        if (preg_match('/\{[\s\S]*\}/', $clean, $matches)) {
-            $decoded = json_decode($matches[0], true);
-            if (is_array($decoded)) {
-                return $decoded;
+        if ($hadConnectionReset) {
+            Log::error('Koneksi cURL ke Google API terputus setelah retry: ' . $lastError);
+            throw new RuntimeException('Koneksi internet server ke layanan analisis terputus sesaat. Silakan tekan Identifikasi Spesimen ulang.');
+        }
+
+        throw new RuntimeException('Gagal memproses gambar pada layanan analisis: ' . $lastError);
+    }
+
+    public function canonicalScientificName(string $rawName): string
+    {
+        $clean = str_replace(['×', '✕'], ' ', trim($rawName));
+        $clean = preg_replace('/\s*\([^)]*\)/', '', $clean);
+        $clean = preg_replace('/\s+/', ' ', trim((string) $clean));
+
+        if ($clean === '') {
+            return '';
+        }
+
+        $parts = explode(' ', $clean);
+        $parts[0] = ucfirst(strtolower($parts[0]));
+
+        for ($i = 1; $i < count($parts); $i++) {
+            $parts[$i] = strtolower($parts[$i]);
+        }
+
+        return implode(' ', $parts);
+    }
+
+    private function decodeVisionJson(string $rawText): ?array
+    {
+        $trimmed = trim($rawText);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        $trimmed = preg_replace('/^```(?:json)?\s*/i', '', $trimmed);$trimmed = preg_replace('/\s*```$/', '', (string) $trimmed);
+
+        $decoded = json_decode(trim((string) $trimmed), true);
+        if (!is_array($decoded)) {
+            return null;
+        }
+
+        $plants = [];
+        foreach (($decoded['detected_plants'] ?? []) as $item) {
+            if (!is_array($item)) {
+                continue;
             }
-        }
 
-        return null;
-    }
+            $box = null;
+            if (is_array($item['box_2d'] ?? null) && count($item['box_2d']) >= 4) {
+                $box = array_map(
+                    fn ($v) => max(0, min(1000, (int) $v)),
+                    array_slice($item['box_2d'], 0, 4)
+                );
+            }
 
-    private function buildBotanicalPrompt(): string
-    {
-        return <<<PROMPT
-Anda adalah pakar taksonomi botani, etnofarmakologi, dan toksikologi tumbuhan berbasis bukti ilmiah (evidence-based).
-Identifikasi spesies tumbuhan pada foto secara objektif meskipun spesies tersebut berada di luar daftar tanaman umum.
-
-LANGKAH 1 — ANALISIS MORFOLOGI VISUAL (`morphological_analysis`):
-Amati ciri fisik nyata pada gambar sebelum menentukan nama spesies:
-(a) Tipe daun (daun tunggal utuh, daun menjari dengan cuping sempit, daun menjari berlekuk dalam menyirip, atau daun majemuk menyirip/menyirip ganda).
-(b) Tepi daun & pertulangan (tepi rata/entire, bergerigi halus, bergerigi tajam/serrate, atau berlekuk dalam/pinnatifid).
-(c) Warna, tekstur, & tangkai (warna hijau segar, hijau tua, atau merah keunguan/perunggu; permukaan licin mengilap, tebal sukulen, atau berbulu kasar; letak tangkai di pangkal tepi daun atau menempel ke tengah helai/peltate; warna tangkai kemerahan atau hijau berongga).
-
-LANGKAH 2 — KUNCI PEMBEDA SPESIES MIRIP & TANAMAN BERACUN:
-- Daun Singkong / Ketela Pohon (Manihot esculenta): Daun menjari dalam dengan 5–9 cuping SEMPIT memanjang berbentuk lanset (lanceolate). TEPI TIAP CUPING RATA (tidak bergerigi dan tidak berlekuk-lekuk lagi). Tangkai daun panjang sering berwarna kemerahan/keunguan atau hijau kemerahan. Wajib set `is_plant` = true, `is_medicinal_herb` = true, `is_toxic` = false (cantumkan pada `safety_warning` bahwa daun singkong mentah mengandung glikosida sianogenik linamarin sehingga wajib direbus matang sebelum dikonsumsi). JANGAN PERNAH tertukar dengan Pepaya!
-- Daun Pepaya (Carica papaya): Daun tunggal sangat besar, menjari lebar dengan 7–11 cuping besar yang BERLEKUK-LEKUK DALAM menyirip (pinnatifid — tiap cuping bercabang/berlekuk lagi), warna hijau segar (tidak pernah merah keunguan), bertangkai panjang tebal berongga hijau pucat yang menempel di pangkal tepi helai.
-- Jarak Kepyar / Castor Bean (Ricinus communis): Daun menjari 5–11 cuping lebar dengan TEPI BERGERIGI TAJAM (serrate) teratur, tangkai menempel agak ke tengah helai daun (peltate), warna hijau tua atau MERAH KEUNGUAN / PERUNGGU, sering disertai buah bulat berduri lunak. SANGAT BERACUN (mengandung protein toksin risin mematikan, terutama pada biji dan daun mentah). Wajib set `is_plant` = true, `is_toxic` = true, `is_medicinal_herb` = true.
-- Jarak Pagar (Jatropha curcas): Daun berlekuk 3–5 dangkal berbentuk hati lebar, tepi rata, bergetah. BERACUN jika tertelan (mengandung kurkin dan ester forbol). Wajib set `is_plant` = true, `is_toxic` = true, `is_medicinal_herb` = true.
-- Kecubung (Datura metel / Brugmansia): Daun tunggal bulat telur dengan bunga terompet besar. SANGAT BERACUN (alkaloid tropana: skopolamin, hiosiamin, atropin). Wajib set `is_plant` = true, `is_toxic` = true, `is_medicinal_herb` = true.
-- Tanaman Beracun Lain di Alam Liar (mis. Nerium oleander, Abrus precatorius, Dieffenbachia, Euphorbia tirucalli): Wajib set `is_plant` = true, `is_toxic` = true, `is_medicinal_herb` = true.
-- Keji Beling (Strobilanthes crispus): Daun tunggal hijau tua, permukaan SANGAT KASAR berbulu pendek seperti amplas, tepi bergerigi.
-- Sambung Nyawa (Gynura procumbens): Daun tunggal hijau cerah agak TEBAL BERDAGING (sukulen), permukaan HALUS LICIN tidak kasar, sering bersemu keunguan.
-
-LANGKAH 3 — ATURAN PENULISAN DATA ILMIAH (PLUS-MINUS & AKURAT):
-1. Jika `is_toxic` = true, tambahkan akhiran ` (Beracun)` pada `common_name_id` (contoh: `Jarak Kepyar (Beracun)`).
-2. Pada `traditional_usage`, `lab_evidence`, dan `clinical_evidence`, sajikan fakta ilmiah secara berimbang (plus-minus):
-   - Untuk tanaman herbal: jelaskan senyawa aktif utama (mis. flavonoid, kuersetin, kurkuminoid, andrografolid), mekanisme kerja berdasarkan studi laboratorium/klinis, serta batas dosis wajar.
-   - Untuk tanaman beracun: jelaskan potensi farmakologis/etnobotani yang pernah diteliti ilmuwan (mis. penggunaan luar terkontrol atau isolat senyawa tertentu) SEKALIGUS menjelaskan senyawa toksik spesifik, mekanisme keracunan organ, dan alasan mengapa konsumsi langsung sangat berbahaya.
-3. Pada `safety_warning`, tuliskan peringatan keamanan yang spesifik dan faktual (bukan kalimat generik).
-4. Jika gambar BUKAN tumbuhan (mis. wajah, benda mati, kendaraan, layar, makanan jadi), isi `is_plant` = false, `is_medicinal_herb` = false, `is_toxic` = false, dan `confidence` di bawah 40.
-PROMPT;
-    }
-
-    private function normalizeResult(array $data): array
-    {
-        $isToxic = (bool) ($data['is_toxic'] ?? false);
-        $commonName = trim((string) ($data['common_name_id'] ?? 'Tanaman'));
-
-        if ($isToxic && $commonName !== '' && !str_contains(strtolower($commonName), 'beracun')) {
-            $commonName .= ' (Beracun)';
+            $plants[] = [
+                'common_name_id' => trim((string) ($item['common_name_id'] ?? '')),
+                'scientific_name' => trim((string) ($item['scientific_name'] ?? '')),
+                'local_name' => trim((string) ($item['local_name'] ?? '')),
+                'description' => trim((string) ($item['description'] ?? '')),
+                'plant_parts_used' => trim((string) ($item['plant_parts_used'] ?? 'Daun')),
+                'traditional_usage' => trim((string) ($item['traditional_usage'] ?? '')),
+                'lab_evidence' => isset($item['lab_evidence']) ? trim((string) $item['lab_evidence']) : null,
+                'clinical_evidence' => isset($item['clinical_evidence']) ? trim((string) $item['clinical_evidence']) : null,
+                'safety_warning' => trim((string) ($item['safety_warning'] ?? 'Gunakan sesuai takaran wajar dan konsultasikan dengan tenaga kesehatan bila memiliki kondisi medis tertentu.')),
+                'is_toxic' => (bool) ($item['is_toxic'] ?? false),
+                'is_confident_species' => (bool) ($item['is_confident_species'] ?? false),
+                'confidence' => (int) ($item['confidence'] ?? 0),
+                'box_2d' => $box,
+            ];
         }
 
         return [
-            'is_plant' => (bool) ($data['is_plant'] ?? false),
-            'is_medicinal_herb' => (bool) ($data['is_medicinal_herb'] ?? false),
-            'is_toxic' => $isToxic,
-            'confidence' => (int) ($data['confidence'] ?? 0),
-            'common_name_id' => $commonName,
-            'scientific_name' => trim((string) ($data['scientific_name'] ?? '')),
-            'local_name' => trim((string) ($data['local_name'] ?? '')),
-            'description' => trim((string) ($data['description'] ?? 'Deskripsi botani belum tersedia.')),
-            'plant_parts_used' => trim((string) ($data['plant_parts_used'] ?? 'Daun')),
-            'traditional_usage' => trim((string) ($data['traditional_usage'] ?? 'Memiliki catatan pemanfaatan etnobotani dan kajian fitokimia.')),
-            'lab_evidence' => !empty($data['lab_evidence']) ? trim((string) $data['lab_evidence']) : null,
-            'clinical_evidence' => !empty($data['clinical_evidence']) ? trim((string) $data['clinical_evidence']) : null,
-            'safety_warning' => trim((string) ($data['safety_warning'] ?? 'Perhatikan dosis dan konsultasikan dengan tenaga medis sebelum penggunaan.')),
+            'is_plant' => (bool) ($decoded['is_plant'] ?? false),
+            'is_cooked_or_processed_food' => (bool) ($decoded['is_cooked_or_processed_food'] ?? false),
+            'rejection_reason' => isset($decoded['rejection_reason']) ? trim((string) $decoded['rejection_reason']) : null,
+            'detected_plants' => $plants,
         ];
-    }
-
-    private function prepareCompressedImage(string $imagePath): array
-    {
-        if (function_exists('imagecreatefromstring')) {
-            $raw = @file_get_contents($imagePath);
-            $src = $raw !== false ? @imagecreatefromstring($raw) : false;
-
-            if ($src !== false) {
-                $origW = imagesx($src);
-                $origH = imagesy($src);
-                $maxDim = 1024;
-
-                if ($origW > $maxDim || $origH > $maxDim) {
-                    $ratio = min($maxDim / $origW, $maxDim / $origH);
-                    $newW = max(1, (int) round($origW * $ratio));
-                    $newH = max(1, (int) round($origH * $ratio));
-
-                    $dst = imagecreatetruecolor($newW, $newH);
-                    imagecopyresampled($dst, $src, 0, 0, 0, 0, $newW, $newH, $origW, $origH);
-                    imagedestroy($src);
-                    $src = $dst;
-                }
-
-                ob_start();
-                imagejpeg($src, null, 85);
-                $jpegData = ob_get_clean();
-                imagedestroy($src);
-
-                if (!empty($jpegData)) {
-                    return ['image/jpeg', base64_encode($jpegData)];
-                }
-            }
-        }
-
-        $mimeType = mime_content_type($imagePath) ?: 'image/jpeg';
-        return [$mimeType, base64_encode((string) file_get_contents($imagePath))];
     }
 }

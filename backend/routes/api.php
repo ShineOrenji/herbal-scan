@@ -13,5 +13,8 @@ Route::post('/identify', [HerbalController::class, 'identify']);
 Route::prefix('v1')->group(function () {
     Route::get('/herbals', [HerbalController::class, 'index']);
     Route::get('/herbals/slug/{slug}', [HerbalController::class, 'showBySlug']);
+    Route::get('/scan-histories', [HerbalController::class, 'histories']);
+    Route::delete('/scan-histories/{id}', [HerbalController::class, 'destroyHistory']);
+    Route::delete('/scan-histories', [HerbalController::class, 'clearHistories']);
     Route::post('/predict', [HerbalController::class, 'identify']);
 });
