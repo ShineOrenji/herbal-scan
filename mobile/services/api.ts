@@ -1,17 +1,73 @@
 import axios from 'axios';
 import { HerbalDetail, ScanHistoryItem } from '../types/herbal';
 
-// Ganti IP sesuai alamat IP Wi-Fi laptop Linux Mint Anda
-const BASE_URL = 'http://10.34.248.63:8000/api/v1';
+let ExpoConstants: any = null;
+try {
+  const mod = require('expo-constants');
+  ExpoConstants = mod?.default ?? mod;
+} catch {
+  ExpoConstants = null;
+}
 
-const apiClient = axios.create({
+const DEFAULT_SERVER_IP = '10.34.248.63';
+
+function detectBaseUrl(): string {
+  const envUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (typeof envUrl === 'string' && envUrl.startsWith('http')) {
+    return envUrl.replace(/\/+$/, '');
+  }
+
+  const hostUri: string | undefined =
+    ExpoConstants?.expoConfig?.hostUri ||
+    ExpoConstants?.manifest2?.extra?.expoGo?.debuggerHost ||
+    ExpoConstants?.manifest?.debuggerHost;
+
+  if (typeof hostUri === 'string' && hostUri.length > 0) {
+    const host = hostUri.split(':')[0];
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
+      return `http://${host}:8000/api/v1`;
+    }
+  }
+
+  return `http://${DEFAULT_SERVER_IP}:8000/api/v1`;
+}
+
+export const BASE_URL = detectBaseUrl();
+
+let currentAuthToken: string | null = null;
+
+export const setApiAuthToken = (token: string | null) => {
+  currentAuthToken = token;
+};
+
+export const getApiAuthToken = () => currentAuthToken;
+
+export const apiClient = axios.create({
   baseURL: BASE_URL,
   timeout: 25000,
   headers: {
     'Content-Type': 'application/json',
-    'Accept': 'application/json',
+    Accept: 'application/json',
   },
 });
+
+apiClient.interceptors.request.use((config) => {
+  if (currentAuthToken) {
+    config.headers = config.headers ?? {};
+    config.headers.Authorization = `Bearer ${currentAuthToken}`;
+  }
+  return config;
+});
+
+export interface UserProfile {
+  id: number;
+  name: string;
+  email: string;
+  phone: string | null;
+  avatar_url: string | null;
+  has_password: boolean;
+  scan_count?: number;
+}
 
 let FileSystem: any = null;
 try {
@@ -144,4 +200,74 @@ export const deleteScanHistory = async (id: number): Promise<void> => {
 
 export const clearAllScanHistories = async (): Promise<void> => {
   await apiClient.delete('/scan-histories');
+};
+
+// === AUTH & PROFILE API ===
+
+export const sendRegisterOtpApi = async (payload: {
+  name: string;
+  email: string;
+  phone?: string;
+  password: string;
+}) => {
+  const res = await apiClient.post('/auth/register/send-otp', payload);
+  return res.data;
+};
+
+export const verifyRegisterOtpApi = async (payload: { email: string; otp: string }) => {
+  const res = await apiClient.post('/auth/register/verify-otp', payload);
+  return res.data as { token: string; user: UserProfile; message: string };
+};
+
+export const loginApi = async (payload: { identifier: string; password: string }) => {
+  const res = await apiClient.post('/auth/login', payload);
+  return res.data as { token: string; user: UserProfile; message: string };
+};
+
+export const googleLoginApi = async (payload: { access_token?: string; id_token?: string }) => {
+  const res = await apiClient.post('/auth/google', payload);
+  return res.data as { token: string; user: UserProfile; message: string };
+};
+
+export const getMeApi = async (): Promise<UserProfile> => {
+  const res = await apiClient.get('/auth/me');
+  return res.data.user;
+};
+
+export const updateProfileApi = async (payload: { name: string; phone?: string }) => {
+  const res = await apiClient.put('/auth/profile', payload);
+  return res.data as { user: UserProfile; message: string };
+};
+
+export const uploadAvatarApi = async (imageUri: string) => {
+  const formData = new FormData();
+  const filename = imageUri.split('/').pop() || 'avatar.jpg';
+  const ext = filename.split('.').pop()?.toLowerCase();
+  const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
+
+  formData.append('avatar', {
+    uri: imageUri,
+    name: filename,
+    type: mime,
+  } as any);
+
+  const res = await apiClient.post('/auth/profile/avatar', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return res.data as { user: UserProfile; message: string };
+};
+
+export const updatePasswordApi = async (payload: {
+  current_password?: string;
+  password: string;
+  password_confirmation: string;
+}) => {
+  const res = await apiClient.put('/auth/password', payload);
+  return res.data as { message: string };
+};
+
+export const logoutApi = async () => {
+  await apiClient.post('/auth/logout');
 };

@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  Animated,
+  Easing,
   Image,
   Platform,
   StatusBar,
@@ -10,7 +12,10 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BotanicalBackdrop from '../components/BotanicalBackdrop';
+import GlassView from '../components/GlassView';
+import { useAuth } from '../contexts/AuthContext';
 import { C, R, WELCOME_PLANT_IMAGE } from '../constants/herbalTheme';
 
 /** Ilustrasi tanaman bawaan. Dipakai bila WELCOME_PLANT_IMAGE kosong / gagal dimuat. */
@@ -39,10 +44,194 @@ function PlantIllustration() {
   );
 }
 
-export default function WelcomeScreen() {
+export default function WelcomeEntryScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const auth = useAuth() as any;
+  const isReady = Boolean(auth?.isReady);
+  const isLoggedIn = Boolean(auth?.user || auth?.token || auth?.isAuthenticated);
+
+  const [splashDone, setSplashDone] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
-  const showRemote = Boolean(WELCOME_PLANT_IMAGE) && !imageFailed;
+
+  const logoScale = useRef(new Animated.Value(0.82)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const textTranslateY = useRef(new Animated.Value(18)).current;
+  const textOpacity = useRef(new Animated.Value(0)).current;
+  const pulseRing = useRef(new Animated.Value(1)).current;
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  const minDelayDone = useRef(false);
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(logoScale, {
+        toValue: 1,
+        friction: 6,
+        tension: 95,
+        useNativeDriver: true,
+      }),
+      Animated.timing(logoOpacity, {
+        toValue: 1,
+        duration: 600,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(textTranslateY, {
+        toValue: 0,
+        duration: 650,
+        delay: 180,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(textOpacity, {
+        toValue: 1,
+        duration: 650,
+        delay: 180,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    const pulseLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseRing, {
+          toValue: 1.09,
+          duration: 1200,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseRing, {
+          toValue: 1,
+          duration: 1200,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulseLoop.start();
+
+    Animated.timing(progressAnim, {
+      toValue: 1,
+      duration: 1750,
+      easing: Easing.inOut(Easing.cubic),
+      useNativeDriver: false,
+    }).start(() => {
+      minDelayDone.current = true;
+    });
+
+    const timer = setTimeout(() => {
+      minDelayDone.current = true;
+    }, 1800);
+
+    return () => {
+      pulseLoop.stop();
+      clearTimeout(timer);
+    };
+  }, [logoOpacity, logoScale, progressAnim, pulseRing, textOpacity, textTranslateY]);
+
+  useEffect(() => {
+    if (!isReady) return;
+    const check = setInterval(() => {
+      if (minDelayDone.current) {
+        clearInterval(check);
+        if (isLoggedIn) {
+          router.replace('/(tabs)');
+        } else {
+          setSplashDone(true);
+        }
+      }
+    }, 80);
+    return () => clearInterval(check);
+  }, [isReady, isLoggedIn, router]);
+
+  // Otomatis arahkan ke Beranda jika pengguna baru saja selesai login/register dari halaman /auth
+  useEffect(() => {
+    if (splashDone && isLoggedIn) {
+      router.replace('/(tabs)');
+    }
+  }, [splashDone, isLoggedIn, router]);
+
+  const barWidth = progressAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['10%', '100%'],
+  });
+
+  // 1. SPLASH SCREEN
+  if (!splashDone) {
+    return (
+      <View style={styles.splashScreen}>
+        <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+        <BotanicalBackdrop />
+
+        <View style={styles.centerContent}>
+          <Animated.View
+            style={[
+              styles.emblemWrap,
+              {
+                opacity: logoOpacity,
+                transform: [{ scale: logoScale }],
+              },
+            ]}
+          >
+            <Animated.View
+              style={[
+                styles.outerHalo,
+                {
+                  transform: [{ scale: pulseRing }],
+                },
+              ]}
+            />
+            <GlassView
+              radius={38}
+              intensity={55}
+              fill="rgba(74, 222, 128, 0.16)"
+              shadow
+              style={styles.logoCard}
+              contentStyle={styles.logoCardInner}
+            >
+              <Ionicons name="leaf" size={50} color={C.leaf} />
+            </GlassView>
+          </Animated.View>
+
+          <Animated.View
+            style={[
+              styles.titleBlock,
+              {
+                opacity: textOpacity,
+                transform: [{ translateY: textTranslateY }],
+              },
+            ]}
+          >
+            <View style={styles.pillTag}>
+              <Ionicons name="sparkles" size={12} color={C.leaf} />
+              <Text style={styles.pillTagText}>BOTANICAL AI & DOI MONOGRAPH</Text>
+            </View>
+
+            <Text style={styles.brandTitle}>
+              Herbal<Text style={styles.brandTitleBold}>Scan</Text>
+            </Text>
+
+            <Text style={styles.brandSubtitle}>
+              Identifikasi tanaman herbal secara presisi lengkap dengan kajian fitokimia & jurnal ilmiah
+            </Text>
+          </Animated.View>
+        </View>
+
+        <View style={styles.footerWrap}>
+          <View style={styles.progressTrack}>
+            <Animated.View style={[styles.progressFill, { width: barWidth }]} />
+          </View>
+          <Text style={styles.footerCaption}>Menyiapkan katalog botani...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // 2. MENU AWAL (WELCOME SCREEN)
+  const hasPlantImage = Boolean(WELCOME_PLANT_IMAGE) && !imageFailed;
+  const plantImageSource =
+    typeof WELCOME_PLANT_IMAGE === 'string'
+      ? { uri: WELCOME_PLANT_IMAGE }
+      : WELCOME_PLANT_IMAGE;
 
   return (
     <View style={styles.screen}>
@@ -50,9 +239,9 @@ export default function WelcomeScreen() {
       <BotanicalBackdrop tone="soft" />
 
       <View style={styles.heroArea}>
-        {showRemote ? (
+        {hasPlantImage && plantImageSource ? (
           <Image
-            source={{ uri: WELCOME_PLANT_IMAGE }}
+            source={plantImageSource}
             style={styles.heroImage}
             resizeMode="contain"
             onError={() => setImageFailed(true)}
@@ -62,7 +251,12 @@ export default function WelcomeScreen() {
         )}
       </View>
 
-      <View style={styles.bottomBlock}>
+      <View
+        style={[
+          styles.bottomBlock,
+          { paddingBottom: Math.max(insets.bottom, 20) + 14 },
+        ]}
+      >
         <Text style={styles.title}>Selamat Datang</Text>
         <Text style={styles.subtitle}>
           Pindai tanaman, cek keamanan konsumsinya, dan telusuri jurnal ilmiah dalam satu aplikasi.
@@ -71,19 +265,19 @@ export default function WelcomeScreen() {
         <TouchableOpacity
           activeOpacity={0.9}
           style={styles.primaryBtn}
-          onPress={() => router.replace('/(tabs)')}
+          onPress={() => router.push('/auth')}
         >
-          <Ionicons name="sparkles" size={17} color={C.ink} />
-          <Text style={styles.primaryBtnText}>Mulai Menjelajah</Text>
+          <Ionicons name="person-circle-outline" size={20} color={C.ink} />
+          <Text style={styles.primaryBtnText}>Masuk / Daftar Akun</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           activeOpacity={0.85}
           style={styles.secondaryBtn}
-          onPress={() => router.replace('/(tabs)/search')}
+          onPress={() => router.replace('/(tabs)')}
         >
-          <Ionicons name="search-outline" size={17} color={C.mint} />
-          <Text style={styles.secondaryBtnText}>Lihat Katalog Herbal</Text>
+          <Ionicons name="compass-outline" size={19} color={C.mint} />
+          <Text style={styles.secondaryBtnText}>Masuk Tanpa Akun</Text>
         </TouchableOpacity>
 
         <Text style={styles.footnote}>
@@ -95,6 +289,105 @@ export default function WelcomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  // Splash Screen
+  splashScreen: {
+    flex: 1,
+    backgroundColor: C.bgSoft,
+    justifyContent: 'space-between',
+  },
+  centerContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  emblemWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 28,
+  },
+  outerHalo: {
+    position: 'absolute',
+    width: 142,
+    height: 142,
+    borderRadius: 46,
+    borderWidth: 1.5,
+    borderColor: 'rgba(74, 222, 128, 0.34)',
+    backgroundColor: 'rgba(74, 222, 128, 0.06)',
+  },
+  logoCard: {
+    width: 112,
+    height: 112,
+  },
+  logoCardInner: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titleBlock: {
+    alignItems: 'center',
+  },
+  pillTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(74, 222, 128, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(134, 239, 172, 0.32)',
+    paddingHorizontal: 13,
+    paddingVertical: 6,
+    borderRadius: R.pill,
+    marginBottom: 14,
+  },
+  pillTagText: {
+    color: C.leafSoft,
+    fontSize: 10.5,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  brandTitle: {
+    fontSize: 40,
+    fontWeight: '300',
+    color: C.white,
+    letterSpacing: -0.8,
+  },
+  brandTitleBold: {
+    fontWeight: '800',
+    color: C.leaf,
+  },
+  brandSubtitle: {
+    marginTop: 10,
+    fontSize: 13.5,
+    color: C.textSoft,
+    textAlign: 'center',
+    lineHeight: 20,
+    maxWidth: 300,
+  },
+  footerWrap: {
+    paddingHorizontal: 48,
+    paddingBottom: 52,
+    alignItems: 'center',
+    gap: 10,
+  },
+  progressTrack: {
+    width: '100%',
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
+    backgroundColor: C.leaf,
+  },
+  footerCaption: {
+    fontSize: 12,
+    color: C.textFaint,
+    fontWeight: '600',
+  },
+
+  // Welcome Screen (Menu Awal)
   screen: { flex: 1, backgroundColor: C.bgSoft },
 
   heroArea: {
@@ -159,7 +452,6 @@ const styles = StyleSheet.create({
 
   bottomBlock: {
     paddingHorizontal: 24,
-    paddingBottom: Platform.OS === 'ios' ? 42 : 30,
     alignItems: 'center',
   },
   title: {

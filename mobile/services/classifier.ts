@@ -1,15 +1,6 @@
 import { Platform } from 'react-native';
 import * as ApiModule from './api';
 
-let ExpoConstants: any = null;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const mod = require('expo-constants');
-  ExpoConstants = mod?.default ?? mod;
-} catch {
-  ExpoConstants = null;
-}
-
 export interface DetectedPlantItem {
   slug: string;
   name: string;
@@ -29,82 +20,36 @@ export interface ClassificationResponse {
 }
 
 function resolveBaseUrl(): string {
-  const apiAny = ApiModule as any;
-  for (const exp of Object.values(apiAny)) {
-    if (exp && (typeof exp === 'object' || typeof exp === 'function')) {
-      const base = (exp as any)?.defaults?.baseURL || (exp as any)?.baseURL;
-      if (typeof base === 'string' && base.startsWith('http')) {
-        return base.replace(/\/+$/, '');
-      }
-    }
-    if (typeof exp === 'string' && exp.startsWith('http')) {
-      return exp.replace(/\/+$/, '');
-    }
+  if (typeof ApiModule.BASE_URL === 'string' && ApiModule.BASE_URL.startsWith('http')) {
+    return ApiModule.BASE_URL.replace(/\/+$/, '');
   }
-
-  const envUrl =
-    process.env.EXPO_PUBLIC_API_URL ||
-    process.env.EXPO_PUBLIC_BASE_URL ||
-    process.env.EXPO_PUBLIC_BACKEND_URL;
-  if (typeof envUrl === 'string' && envUrl.startsWith('http')) {
-    return envUrl.replace(/\/+$/, '');
-  }
-
-  const hostUri: string | undefined =
-    ExpoConstants?.expoConfig?.hostUri ||
-    ExpoConstants?.manifest2?.extra?.expoGo?.debuggerHost ||
-    ExpoConstants?.manifest?.debuggerHost;
-
-  if (typeof hostUri === 'string' && hostUri.length > 0) {
-    const host = hostUri.split(':')[0];
-    if (host) {
-      return `http://${host}:8000/api/v1`;
-    }
-  }
-
-  const linkingUri: string | undefined = ExpoConstants?.linkingUri;
-  if (typeof linkingUri === 'string') {
-    const match = linkingUri.match(/^(?:exp|https?):\/\/([^:/]+)/i);
-    if (match?.[1]) {
-      return `http://${match[1]}:8000/api/v1`;
-    }
-  }
-
-  const defaultHost = Platform.OS === 'android' ? '10.0.2.2' : '127.0.0.1';
-  return `http://${defaultHost}:8000/api/v1`;
+  return 'http://10.34.248.63:8000/api/v1';
 }
 
 function buildTargetUrls(baseUrl: string): string[] {
   const clean = baseUrl.replace(/\/+$/, '');
-  const urls: string[] = [];
-
   if (clean.endsWith('/api/v1')) {
     const apiRoot = clean.replace(/\/v1$/, '');
-    urls.push(`${clean}/predict`, `${apiRoot}/identify`);
-  } else if (clean.endsWith('/api')) {
-    urls.push(`${clean}/v1/predict`, `${clean}/identify`);
-  } else {
-    urls.push(`${clean}/api/v1/predict`, `${clean}/api/identify`, `${clean}/predict`, `${clean}/identify`);
+    return [`${clean}/predict`, `${apiRoot}/identify`];
   }
-
-  return Array.from(new Set(urls));
+  if (clean.endsWith('/api')) {
+    return [`${clean}/v1/predict`, `${clean}/identify`];
+  }
+  return [`${clean}/api/v1/predict`, `${clean}/api/identify`];
 }
 
-function sanitizeServerMessage(raw?: string): string {
+function sanitizeServerMessage(raw?: string, targetBaseUrl?: string): string {
   if (!raw) {
     return 'Gagal memproses gambar pada server. Periksa koneksi internet Anda lalu coba lagi.';
   }
   const lower = raw.toLowerCase();
   if (
-    lower.includes('curl error') ||
-    lower.includes('googleapis') ||
-    lower.includes('recv failure') ||
-    lower.includes('ssl')
+    lower.includes('network request failed') ||
+    lower.includes('network error') ||
+    lower.includes('failed to fetch')
   ) {
-    return 'Koneksi server ke layanan analisis terputus sementara. Silakan tekan Identifikasi ulang.';
-  }
-  if (lower.includes('network request failed') || lower.includes('network error')) {
-    return 'Tidak dapat menjangkau server Laravel. Pastikan HP & laptop satu Wi-Fi dan server berjalan dengan --host=0.0.0.0.';
+    const hostInfo = targetBaseUrl ? ` (${targetBaseUrl})` : '';
+    return `Tidak dapat menjangkau server Laravel${hostInfo}. Pastikan server berjalan dengan --host=0.0.0.0 dan HP berada di Wi-Fi yang sama.`;
   }
   return raw;
 }
@@ -123,13 +68,18 @@ function buildFormData(
 function uploadFormData(
   url: string,
   formData: FormData,
-  timeoutMs = 60000
+  timeoutMs = 90000
 ): Promise<{ status: number; text: string }> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', url);
     xhr.timeout = timeoutMs;
     xhr.setRequestHeader('Accept', 'application/json');
+
+    const token = ApiModule.getApiAuthToken?.();
+    if (token) {
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    }
 
     xhr.onload = () => {
       resolve({
@@ -166,24 +116,21 @@ export async function classifyImage(imageUri: string): Promise<ClassificationRes
   const ext = match ? match[1].toLowerCase() : 'jpg';
   const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
 
-  let allNotFound = true;
-  let lastMessage = '';
+  let notFoundCount = 0;
 
   for (const url of targetUrls) {
     try {
       let { status, text } = await uploadFormData(
         url,
         buildFormData('image', normalizedUri, filename, mimeType),
-        60000
+        90000
       );
 
       if (status === 404 || status === 405) {
+        notFoundCount += 1;
         continue;
       }
 
-      allNotFound = false;
-
-      // Sesuaikan otomatis jika backend memvalidasi field 'photo' atau 'file'
       if (status === 422) {
         const lowerText = text.toLowerCase();
         const altField = lowerText.includes('photo')
@@ -196,7 +143,7 @@ export async function classifyImage(imageUri: string): Promise<ClassificationRes
           const retry = await uploadFormData(
             url,
             buildFormData(altField, normalizedUri, filename, mimeType),
-            60000
+            90000
           );
           status = retry.status;
           text = retry.text;
@@ -232,7 +179,7 @@ export async function classifyImage(imageUri: string): Promise<ClassificationRes
         mode:
           payload.mode ||
           (plants.length > 1 ? 'multi' : plants.length === 1 ? 'single' : 'rejected'),
-        message: payload.message ? sanitizeServerMessage(payload.message) : undefined,
+        message: payload.message ? sanitizeServerMessage(payload.message, baseUrl) : undefined,
         scan_image_url: payload.scan_image_url || null,
         plants,
       };
@@ -240,18 +187,13 @@ export async function classifyImage(imageUri: string): Promise<ClassificationRes
       if (err?.message === 'TIMEOUT') {
         throw new Error('Waktu analisis habis (timeout). Silakan coba pindai ulang.');
       }
-      lastMessage = err?.message || 'Network request failed';
-      if (!allNotFound) {
-        break;
-      }
+      throw new Error(sanitizeServerMessage(err?.message, baseUrl));
     }
   }
 
-  if (allNotFound) {
-    throw new Error(
-      `Endpoint /v1/predict & /identify tidak merespons pada ${baseUrl}.`
-    );
+  if (notFoundCount === targetUrls.length) {
+    throw new Error(`Endpoint /v1/predict & /identify tidak ditemukan pada ${baseUrl}.`);
   }
 
-  throw new Error(sanitizeServerMessage(lastMessage));
+  throw new Error('Gagal memproses pemindaian spesimen.');
 }

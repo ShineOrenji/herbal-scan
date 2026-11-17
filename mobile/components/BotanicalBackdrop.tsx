@@ -163,7 +163,7 @@ export default function BotanicalBackdrop({ tone = 'soft' }: BotanicalBackdropPr
 
       {BACKDROP_IMAGE ? (
         <Image
-          source={{ uri: BACKDROP_IMAGE }}
+          source={typeof BACKDROP_IMAGE === 'string' ? { uri: BACKDROP_IMAGE } : BACKDROP_IMAGE}
           blurRadius={28}
           resizeMode="cover"
           style={[StyleSheet.absoluteFill, { opacity: deep ? 0.18 : 0.3 }]}
@@ -180,7 +180,7 @@ export default function BotanicalBackdrop({ tone = 'soft' }: BotanicalBackdropPr
       {!deep &&
         (PLANT_OVERLAY_IMAGE ? (
           <Image
-            source={{ uri: PLANT_OVERLAY_IMAGE }}
+            source={typeof PLANT_OVERLAY_IMAGE === 'string' ? { uri: PLANT_OVERLAY_IMAGE } : PLANT_OVERLAY_IMAGE}
             resizeMode="contain"
             style={{ position: 'absolute', top: -W * 0.12, right: -W * 0.22, width: W * 0.9, height: W * 0.9, opacity: 0.5 }}
           />

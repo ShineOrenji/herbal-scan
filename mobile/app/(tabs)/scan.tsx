@@ -97,6 +97,44 @@ export default function ScanScreen() {
   const [detectedFrameUrl, setDetectedFrameUrl] = useState<string | null>(null);
   const [selectedBoxIdx, setSelectedBoxIdx] = useState<number>(0);
 
+  const [pictureSize, setPictureSize] = useState<string | undefined>(undefined);
+  const [cameraBox, setCameraBox] = useState<{ width: number; height: number }>({
+    width: screenWidth,
+    height: screenHeight,
+  });
+
+  const handleCameraReady = useCallback(async () => {
+    try {
+      const sizes = await cameraRef.current?.getAvailablePictureSizesAsync?.();
+      if (!sizes || sizes.length === 0) return;
+
+      const targetRatio = cameraBox.height / Math.max(1, cameraBox.width);
+      let bestSize = sizes[0];
+      let bestScore = Number.POSITIVE_INFINITY;
+
+      for (const s of sizes) {
+        const [wStr, hStr] = s.split('x');
+        const w = Number(wStr);
+        const h = Number(hStr);
+        if (!w || !h) continue;
+        const longSide = Math.max(w, h);
+        const shortSide = Math.min(w, h);
+        const ratio = longSide / shortSide;
+        const ratioDiff = Math.abs(ratio - targetRatio);
+        // Prioritaskan rasio mendekati layar dengan resolusi ~1080p-2K agar cepat & presisi
+        const resPenalty = Math.abs(longSide - 1920) / 4000;
+        const score = ratioDiff * 10 + resPenalty;
+        if (score < bestScore) {
+          bestScore = score;
+          bestSize = s;
+        }
+      }
+      setPictureSize(bestSize);
+    } catch {
+      // Gunakan ukuran default perangkat
+    }
+  }, [cameraBox.width, cameraBox.height]);
+
   const outerRingSpin = useRef(new Animated.Value(0)).current;
   const innerRingSpin = useRef(new Animated.Value(0)).current;
   const laserSweepY = useRef(new Animated.Value(0)).current;
@@ -305,67 +343,67 @@ export default function ScanScreen() {
     }
 
     try {
+      // 1. Bake rotasi EXIF Android agar width & height sesuai tampilan portrait sebenarnya
+      const normalized = await ImageManipulator.manipulateAsync(uri, [], {
+        compress: 1,
+        format: ImageManipulator.SaveFormat?.JPEG ?? 'jpeg',
+      });
+
+      const workUri = normalized?.uri || uri;
+      const imgW = normalized?.width || 0;
+      const imgH = normalized?.height || 0;
       const actions: any[] = [];
 
-      if (matchScreenReticle && screenWidth > 0 && screenHeight > 0) {
-        const dims = await new Promise<{ width: number; height: number } | null>((resolve) => {
-          Image.getSize(
-            uri,
-            (width, height) => resolve({ width, height }),
-            () => resolve(null)
-          );
-        });
+      const viewW = cameraBox.width || screenWidth;
+      const viewH = cameraBox.height || screenHeight;
 
-        if (dims && dims.width > 0 && dims.height > 0) {
-          const imgW = dims.width;
-          const imgH = dims.height;
-          const imgAspect = imgW / imgH;
-          const screenAspect = screenWidth / screenHeight;
+      if (matchScreenReticle && imgW > 0 && imgH > 0 && viewW > 0 && viewH > 0) {
+        const imgAspect = imgW / imgH;
+        const viewAspect = viewW / viewH;
 
-          let scale = 1;
-          let visibleOriginX = 0;
-          let visibleOriginY = 0;
+        let scale = 1;
+        let visibleOriginX = 0;
+        let visibleOriginY = 0;
 
-          if (imgAspect > screenAspect) {
-            scale = imgH / screenHeight;
-            const visibleImgW = screenWidth * scale;
-            visibleOriginX = (imgW - visibleImgW) / 2;
-          } else {
-            scale = imgW / screenWidth;
-            const visibleImgH = screenHeight * scale;
-            visibleOriginY = (imgH - visibleImgH) / 2;
-          }
-
-          const rawSide = Math.round(reticleSize * scale);
-          const safeSide = Math.min(rawSide, imgW, imgH);
-          const originX = Math.max(
-            0,
-            Math.min(imgW - safeSide, Math.round(visibleOriginX + reticleLeft * scale))
-          );
-          const originY = Math.max(
-            0,
-            Math.min(imgH - safeSide, Math.round(visibleOriginY + reticleTop * scale))
-          );
-
-          actions.push({
-            crop: {
-              originX,
-              originY,
-              width: safeSide,
-              height: safeSide,
-            },
-          });
+        if (imgAspect > viewAspect) {
+          scale = imgH / viewH;
+          const visibleImgW = viewW * scale;
+          visibleOriginX = (imgW - visibleImgW) / 2;
+        } else {
+          scale = imgW / viewW;
+          const visibleImgH = viewH * scale;
+          visibleOriginY = (imgH - visibleImgH) / 2;
         }
+
+        const rawSide = Math.round(reticleSize * scale);
+        const safeSide = Math.min(rawSide, imgW, imgH);
+        const originX = Math.max(
+          0,
+          Math.min(imgW - safeSide, Math.round(visibleOriginX + reticleLeft * scale))
+        );
+        const originY = Math.max(
+          0,
+          Math.min(imgH - safeSide, Math.round(visibleOriginY + reticleTop * scale))
+        );
+
+        actions.push({
+          crop: {
+            originX,
+            originY,
+            width: safeSide,
+            height: safeSide,
+          },
+        });
       }
 
       actions.push({ resize: { width: 896 } });
 
-      const manipulated = await ImageManipulator.manipulateAsync(uri, actions, {
-        compress: 0.78,
+      const manipulated = await ImageManipulator.manipulateAsync(workUri, actions, {
+        compress: 0.82,
         format: ImageManipulator.SaveFormat?.JPEG ?? 'jpeg',
       });
 
-      return manipulated?.uri || uri;
+      return manipulated?.uri || workUri;
     } catch {
       return uri;
     }
@@ -952,7 +990,15 @@ export default function ScanScreen() {
           )}
         </View>
       ) : (
-        <View style={styles.fullCameraWrapper}>
+        <View
+          style={styles.fullCameraWrapper}
+          onLayout={(e) => {
+            const { width, height } = e.nativeEvent.layout;
+            if (width > 0 && height > 0) {
+              setCameraBox({ width, height });
+            }
+          }}
+        >
           {isScreenFocused && (
             <CameraView
               ref={cameraRef}
@@ -960,7 +1006,8 @@ export default function ScanScreen() {
               facing="back"
               zoom={0}
               enableTorch={flashOn}
-              {...({ ratio: '16:9' } as any)}
+              pictureSize={pictureSize}
+              onCameraReady={handleCameraReady}
             />
           )}
 

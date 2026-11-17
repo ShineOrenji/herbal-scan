@@ -219,32 +219,37 @@ class HerbalController extends Controller
     public function histories(Request $request): JsonResponse
     {
         $user = $request->user('sanctum');
-        $hostUrl = rtrim($request->getSchemeAndHttpHost(), '/');
-
-        $query = ScanHistory::with('herbal')->orderByDesc('created_at');
-
-        if ($user) {
-            $query->where('user_id', $user->id);
-        } else {
-            $query->whereNull('user_id');
+        if (!$user) {
+            return response()->json([
+                'status' => 'success',
+                'requires_auth' => true,
+                'data' => [],
+            ]);
         }
 
-        $items = $query->limit(60)->get()->map(function (ScanHistory $history) use ($hostUrl) {
-            $fullPhotoUrl = !empty($history->image_path)
-                ? $hostUrl . '/storage/' . ltrim($history->image_path, '/')
-                : null;
+        $hostUrl = rtrim($request->getSchemeAndHttpHost(), '/');
 
-            return [
-                'id' => $history->id,
-                'detected_slug' => $history->detected_slug,
-                'confidence_score' => round((float) $history->confidence_score),
-                'image_url' => $fullPhotoUrl,
-                'created_at' => $history->created_at?->toIso8601String(),
-                'plant_name' => $history->herbal?->name ?? Str::headline($history->detected_slug),
-                'scientific_name' => $history->herbal?->scientific_name ?? '',
-                'is_toxic' => str_contains(strtolower((string) ($history->herbal?->name ?? '')), 'beracun'),
-            ];
-        });
+        $items = ScanHistory::with('herbal')
+            ->where('user_id', $user->id)
+            ->orderByDesc('created_at')
+            ->limit(60)
+            ->get()
+            ->map(function (ScanHistory $history) use ($hostUrl) {
+                $fullPhotoUrl = !empty($history->image_path)
+                    ? $hostUrl . '/storage/' . ltrim($history->image_path, '/')
+                    : null;
+
+                return [
+                    'id' => $history->id,
+                    'detected_slug' => $history->detected_slug,
+                    'confidence_score' => round((float) $history->confidence_score),
+                    'image_url' => $fullPhotoUrl,
+                    'created_at' => $history->created_at?->toIso8601String(),
+                    'plant_name' => $history->herbal?->name ?? Str::headline($history->detected_slug),
+                    'scientific_name' => $history->herbal?->scientific_name ?? '',
+                    'is_toxic' => str_contains(strtolower((string) ($history->herbal?->name ?? '')), 'beracun'),
+                ];
+            });
 
         return response()->json([
             'status' => 'success',
@@ -255,15 +260,17 @@ class HerbalController extends Controller
     public function destroyHistory(Request $request, int $id): JsonResponse
     {
         $user = $request->user('sanctum');
-
-        $query = ScanHistory::where('id', $id);
-        if ($user) {
-            $query->where('user_id', $user->id);
-        } else {
-            $query->whereNull('user_id');
+        if (!$user) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Silakan masuk terlebih dahulu.',
+            ], 401);
         }
 
-        $history = $query->firstOrFail();
+        $history = ScanHistory::where('user_id', $user->id)
+            ->where('id', $id)
+            ->firstOrFail();
+
         $this->deleteFileIfUnused($history->image_path, $history->id);
         $history->delete();
 
@@ -276,15 +283,14 @@ class HerbalController extends Controller
     public function clearHistories(Request $request): JsonResponse
     {
         $user = $request->user('sanctum');
-
-        $query = ScanHistory::query();
-        if ($user) {
-            $query->where('user_id', $user->id);
-        } else {
-            $query->whereNull('user_id');
+        if (!$user) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Silakan masuk terlebih dahulu.',
+            ], 401);
         }
 
-        $items = $query->get();
+        $items = ScanHistory::where('user_id', $user->id)->get();
         foreach ($items as $item) {
             $this->deleteFileIfUnused($item->image_path, $item->id);
             $item->delete();
@@ -298,6 +304,8 @@ class HerbalController extends Controller
 
     public function identify(Request $request): JsonResponse
     {
+        @set_time_limit(120);
+
         $request->validate([
             'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:20480'],
         ]);
@@ -324,7 +332,11 @@ class HerbalController extends Controller
             ) {
                 $fallbackHerbal = Herbal::where('slug', $tfliteResult['slug'])->first();
                 if ($fallbackHerbal) {
-                    $history = $this->recordHistory($userId, $fallbackHerbal->slug, (float) $tfliteResult['confidence'], $publicScanPath);
+                    $history = $userId !== null
+                        ? $this->recordHistory($userId, $fallbackHerbal->slug, (float) $tfliteResult['confidence'], $publicScanPath)
+                        : null;
+
+                    $scanFrameUrl = $hostUrl . '/storage/' . ltrim($publicScanPath, '/');
 
                     return $this->formatSuccessResponse(
                         [
@@ -334,11 +346,11 @@ class HerbalController extends Controller
                                 false,
                                 [150, 150, 850, 850],
                                 $history,
-                                $hostUrl
+                                $scanFrameUrl
                             ),
                         ],
                         'tflite_offline_fallback',
-                        $hostUrl . '/storage/' . ltrim($publicScanPath, '/')
+                        $scanFrameUrl
                     );
                 }
             }
@@ -385,12 +397,13 @@ class HerbalController extends Controller
 
         $validPlantsPayload = [];
         $seenSlugsInFrame = [];
+        $scanFrameUrl = $hostUrl . '/storage/' . ltrim($publicScanPath, '/');
 
         foreach ($rawDetected as $plantData) {
             $confidence = (int) ($plantData['confidence'] ?? 0);
             $isConfidentSpecies = (bool) ($plantData['is_confident_species'] ?? false);
 
-            if (!$isConfidentSpecies || $confidence < 75) {
+            if ($confidence < 55 || (!$isConfidentSpecies && $confidence < 65)) {
                 continue;
             }
 
@@ -400,7 +413,10 @@ class HerbalController extends Controller
             }
 
             $seenSlugsInFrame[$herbal->slug] = true;
-            $history = $this->recordHistory($userId, $herbal->slug, (float) $confidence, $publicScanPath);
+
+            $history = $userId !== null
+                ? $this->recordHistory($userId, $herbal->slug, (float) $confidence, $publicScanPath)
+                : null;
 
             $validPlantsPayload[] = $this->buildDetectedPlantPayload(
                 $herbal,
@@ -408,7 +424,7 @@ class HerbalController extends Controller
                 (bool) ($plantData['is_toxic'] ?? false),
                 $plantData['box_2d'] ?? null,
                 $history,
-                $hostUrl
+                $scanFrameUrl
             );
         }
 
@@ -435,8 +451,6 @@ class HerbalController extends Controller
                 ...$rejectPayload,
             ]);
         }
-
-        $scanFrameUrl = $hostUrl . '/storage/' . ltrim($publicScanPath, '/');
 
         return $this->formatSuccessResponse(
             $validPlantsPayload,
@@ -469,8 +483,6 @@ class HerbalController extends Controller
             ? "⚠️ PERINGATAN TANAMAN BERACUN: {$plantData['safety_warning']}"
             : $plantData['safety_warning'];
 
-        // Pengambilan foto referensi taksonomi dilakukan saat halaman detail dibuka
-        // agar proses scanning selesai jauh lebih cepat tanpa menunggu API eksternal.
         if (!$herbal) {
             $herbal = Model::unguarded(function () use ($plantData, $rawSlug, $commonName, $canonicalScientific, $formattedWarning) {
                 return Herbal::firstOrCreate(
@@ -514,13 +526,9 @@ class HerbalController extends Controller
         int $confidence,
         bool $isToxic,
         ?array $box2d,
-        ScanHistory $history,
-        string $hostUrl
+        ?ScanHistory $history,
+        string $scanFrameUrl
     ): array {
-        $scanImageUrl = !empty($history->image_path)
-            ? $hostUrl . '/storage/' . ltrim($history->image_path, '/')
-            : null;
-
         return [
             'slug' => $herbal->slug,
             'name' => $herbal->name,
@@ -530,8 +538,8 @@ class HerbalController extends Controller
             'is_toxic' => $isToxic || str_contains(strtolower($herbal->name), 'beracun'),
             'box_2d' => $box2d,
             'reference_image_url' => $herbal->image_url,
-            'scan_image_url' => $scanImageUrl,
-            'history_id' => $history->id,
+            'scan_image_url' => $scanFrameUrl,
+            'history_id' => $history?->id,
         ];
     }
 

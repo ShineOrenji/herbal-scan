@@ -63,10 +63,12 @@ export const SCREEN_TOP_PAD = Platform.OS === 'android' ? 44 : 58;
  * - BACKDROP_IMAGE: foto daun hijau untuk latar (akan diburamkan otomatis).
  *   Jika kosong, latar memakai cahaya hijau berlapis bawaan.
  */
-export const WELCOME_PLANT_IMAGE: string = '';
-export const BACKDROP_IMAGE: string = '';
-/** PNG tanaman/daun transparan pribadi untuk overlay latar (opsional). Kosong = daun bawaan. */
-export const PLANT_OVERLAY_IMAGE: string = '';
+import type { ImageSourcePropType } from 'react-native';
+
+// Pake image sendiri aja ler
+export const WELCOME_PLANT_IMAGE: ImageSourcePropType | string | null = require('../assets/herbal_icon.png');
+export const BACKDROP_IMAGE: ImageSourcePropType | string | null = null;
+export const PLANT_OVERLAY_IMAGE: ImageSourcePropType | string | null = require('../assets/backdrop.png');
 
 /** Permukaan kaca (glass) yang dipakai ulang di banyak kartu. */
 export const glass = {

@@ -14,6 +14,7 @@ export default function TabLayout() {
       <Tabs.Screen name="search" options={{ title: 'Cari' }} />
       <Tabs.Screen name="scan" options={{ title: 'Pindai' }} />
       <Tabs.Screen name="history" options={{ title: 'Riwayat' }} />
+      <Tabs.Screen name="profile" options={{ title: 'Profil' }} />
     </Tabs>
   );
 }

@@ -548,9 +548,9 @@ export default function HomeScreen() {
 
                   <View style={styles.plantCardContent}>
                     <View style={styles.plantCardTopRow}>
-                      <Text style={styles.plantName} numberOfLines={1}>
-                        {item.name}
-                      </Text>
+                      <Text style={styles.featuredName} numberOfLines={1}>
+                      {item.name}
+                    </Text>
                       <View
                         style={[
                           styles.keywordTagBadge,

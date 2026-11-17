@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Keyboard, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import GlassView from './GlassView';
 import { setTabBarTop } from './tabBarMetrics';
@@ -14,14 +15,15 @@ const ICONS: Record<string, { on: IconName; off: IconName }> = {
   search: { on: 'search', off: 'search-outline' },
   scan: { on: 'scan', off: 'scan-outline' },
   history: { on: 'time', off: 'time-outline' },
+  profile: { on: 'person', off: 'person-outline' },
 };
 const FALLBACK = { on: 'ellipse' as IconName, off: 'ellipse-outline' as IconName };
 
-const PAD = 6; // jarak lensa ke tepi bar
+const PAD = 6;
 
-/** Tab bar frosted glass: latar terblur kuat agar menu tidak saru dengan konten di belakangnya. */
 export default function CurvedTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const wrapRef = useRef<View>(null);
   const [barWidth, setBarWidth] = useState(0);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
@@ -60,7 +62,6 @@ export default function CurvedTabBar({ state, descriptors, navigation }: BottomT
       mass: 0.9,
       useNativeDriver: true,
     }).start();
-    // efek "tetes cairan": lensa memanjang sebentar saat berpindah
     lensScale.setValue(1.14);
     Animated.spring(lensScale, {
       toValue: 1,
@@ -73,12 +74,13 @@ export default function CurvedTabBar({ state, descriptors, navigation }: BottomT
   if (keyboardOpen) return null;
 
   const lensH = TAB_BAR.height - PAD * 2;
+  const bottomOffset = TAB_BAR.bottom + insets.bottom;
 
   return (
     <View
       ref={wrapRef}
       pointerEvents="box-none"
-      style={styles.wrap}
+      style={[styles.wrap, { bottom: bottomOffset }]}
       onLayout={() => {
         wrapRef.current?.measureInWindow((_x, y) => setTabBarTop(y));
       }}
@@ -172,7 +174,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: TAB_BAR.sideInset,
     right: TAB_BAR.sideInset,
-    bottom: TAB_BAR.bottom,
     height: TAB_BAR.height,
   },
   glass: { flex: 1 },
