@@ -9,17 +9,23 @@
       "distribution": "internal"
     },
     "preview": {
-    "distribution": "internal",
-    "android": {  
-      "buildType": "apk"
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://herbal-scan-api.vercel.app/api/v1",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "772055532330-jjjs28f0ftpguo5e19lsvl70mv34omq0.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "772055532330-ovlurcou2ljnsp35iglgab2j9oeaoma7.apps.googleusercontent.com"
+      }
     },
-    "env": {
-      "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "772055532330-jjjs28f0ftpguo5e19lsvl70mv34omq0.apps.googleusercontent.com",
-      "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "772055532330-ovlurcou2ljnsp35iglgab2j9oeaoma7.apps.googleusercontent.com"
-    }
-  },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://herbal-scan-api.vercel.app/api/v1",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "772055532330-jjjs28f0ftpguo5e19lsvl70mv34omq0.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "772055532330-ovlurcou2ljnsp35iglgab2j9oeaoma7.apps.googleusercontent.com"
+      }
     }
   },
   "submit": {
