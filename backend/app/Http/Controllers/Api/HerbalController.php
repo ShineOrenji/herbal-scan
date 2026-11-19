@@ -236,7 +236,7 @@ class HerbalController extends Controller
             ->get()
             ->map(function (ScanHistory $history) use ($hostUrl) {
                 $fullPhotoUrl = !empty($history->image_path)
-                    ? $hostUrl . '/storage/' . ltrim($history->image_path, '/')
+                    ? (str_starts_with($history->image_path, 'http') ? $history->image_path : $hostUrl . '/storage/' . ltrim($history->image_path, '/'))
                     : null;
 
                 return [
@@ -311,8 +311,8 @@ class HerbalController extends Controller
         ]);
 
         $hostUrl = rtrim($request->getSchemeAndHttpHost(), '/');
-        $publicScanPath = $request->file('image')->store('history_scans', 'public');
-        $fullImagePath = Storage::disk('public')->path($publicScanPath);
+        $fullImagePath = $request->file('image')->getRealPath();
+        $publicScanPath = null;
         $userId = $request->user('sanctum')?->id;
 
         $knownSpecies = Herbal::select('name', 'scientific_name')
@@ -332,11 +332,12 @@ class HerbalController extends Controller
             ) {
                 $fallbackHerbal = Herbal::where('slug', $tfliteResult['slug'])->first();
                 if ($fallbackHerbal) {
+                    $publicScanPath = app(\App\Services\CloudinaryService::class)->upload($fullImagePath, 'herbal-scan/history_scans');
                     $history = $userId !== null
                         ? $this->recordHistory($userId, $fallbackHerbal->slug, (float) $tfliteResult['confidence'], $publicScanPath)
                         : null;
 
-                    $scanFrameUrl = $hostUrl . '/storage/' . ltrim($publicScanPath, '/');
+                    $scanFrameUrl = $publicScanPath;
 
                     return $this->formatSuccessResponse(
                         [
@@ -355,8 +356,6 @@ class HerbalController extends Controller
                 }
             }
 
-            Storage::disk('public')->delete($publicScanPath);
-
             return response()->json([
                 'status' => 'error',
                 'message' => $visionError->getMessage(),
@@ -368,8 +367,6 @@ class HerbalController extends Controller
         $rawDetected = is_array($vision['detected_plants'] ?? null) ? $vision['detected_plants'] : [];
 
         if (!$isPlant || $isCookedFood || empty($rawDetected)) {
-            Storage::disk('public')->delete($publicScanPath);
-
             $defaultMsg = $isCookedFood
                 ? 'Objek terdeteksi sebagai olahan masakan/makanan matang. HerbalScan hanya memindai spesimen tumbuhan segar/mentah.'
                 : (!$isPlant
@@ -397,7 +394,7 @@ class HerbalController extends Controller
 
         $validPlantsPayload = [];
         $seenSlugsInFrame = [];
-        $scanFrameUrl = $hostUrl . '/storage/' . ltrim($publicScanPath, '/');
+        $scanFrameUrl = '';
 
         foreach ($rawDetected as $plantData) {
             $confidence = (int) ($plantData['confidence'] ?? 0);
@@ -414,6 +411,11 @@ class HerbalController extends Controller
 
             $seenSlugsInFrame[$herbal->slug] = true;
 
+            if ($publicScanPath === null) {
+                $publicScanPath = app(\App\Services\CloudinaryService::class)->upload($fullImagePath, 'herbal-scan/history_scans');
+                $scanFrameUrl = $publicScanPath;
+            }
+
             $history = $userId !== null
                 ? $this->recordHistory($userId, $herbal->slug, (float) $confidence, $publicScanPath)
                 : null;
@@ -429,8 +431,6 @@ class HerbalController extends Controller
         }
 
         if (empty($validPlantsPayload)) {
-            Storage::disk('public')->delete($publicScanPath);
-
             $rejectPayload = [
                 'mode' => 'rejected',
                 'slug' => 'bukan_herbal',
@@ -587,7 +587,11 @@ class HerbalController extends Controller
             ->exists();
 
         if (!$stillUsed) {
-            Storage::disk('public')->delete($imagePath);
+            if (str_starts_with($imagePath, 'http')) {
+                app(\App\Services\CloudinaryService::class)->deleteByUrl($imagePath);
+            } else {
+                Storage::disk('public')->delete($imagePath);
+            }
         }
     }
 

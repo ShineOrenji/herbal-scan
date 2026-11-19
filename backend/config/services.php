@@ -39,4 +39,8 @@ return [
             'model' => env('GEMINI_MODEL', 'gemini-3.8'),
             'tflite_threshold' => (int) env('TFLITE_CONFIDENCE_THRESHOLD', 75),
      ],
+    'cloudinary' => [
+        'url' => env('CLOUDINARY_URL'),
+    ],
+
 ];

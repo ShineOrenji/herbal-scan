@@ -377,12 +377,16 @@ class AuthController extends Controller
         $user = $request->user();
         $oldPath = $user->avatar_path;
 
-        $newPath = $request->file('avatar')->store('avatars', 'public');
+        $newPath = app(\App\Services\CloudinaryService::class)->upload($request->file('avatar')->getRealPath(), 'herbal-scan/avatars');
         $user->avatar_path = $newPath;
         $user->save();
 
         if (!empty($oldPath) && $oldPath !== $newPath) {
-            Storage::disk('public')->delete($oldPath);
+            if (str_starts_with($oldPath, 'http')) {
+                app(\App\Services\CloudinaryService::class)->deleteByUrl($oldPath);
+            } else {
+                Storage::disk('public')->delete($oldPath);
+            }
         }
 
         $hostUrl = rtrim($request->getSchemeAndHttpHost(), '/');
@@ -463,7 +467,7 @@ class AuthController extends Controller
             'email' => $user->email,
             'phone' => $user->phone,
             'avatar_url' => !empty($user->avatar_path)
-                ? $hostUrl . '/storage/' . ltrim($user->avatar_path, '/')
+                ? (str_starts_with($user->avatar_path, 'http') ? $user->avatar_path : $hostUrl . '/storage/' . ltrim($user->avatar_path, '/'))
                 : null,
             'has_password' => (bool) $user->has_password,
             'scan_count' => $user->scanHistories()->count(),

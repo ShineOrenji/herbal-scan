@@ -27,6 +27,10 @@ class ScanHistory extends Model
             return null;
         }
 
+        if (str_starts_with($this->image_path, 'http://') || str_starts_with($this->image_path, 'https://')) {
+            return $this->image_path;
+        }
+
         return asset('storage/' . ltrim($this->image_path, '/'));
     }
 }
