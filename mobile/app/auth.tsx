@@ -109,21 +109,28 @@ export default function AuthScreen() {
   const googleClientId =
     process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ||
     process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID ||
-    '';
+    "";
+  const googleAndroidClientId =
+    process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || "";
 
-  const expoUsername = process.env.EXPO_PUBLIC_EXPO_USERNAME || '';
-    const redirectUri = expoUsername
+  const androidRedirectUri = googleAndroidClientId
+    ? `com.googleusercontent.apps.${googleAndroidClientId.replace(".apps.googleusercontent.com", "")}:/oauth2redirect/google`
+    : undefined;
+
+  const expoUsername = process.env.EXPO_PUBLIC_EXPO_USERNAME || "";
+  const webRedirectUri = expoUsername
     ? `https://auth.expo.io/@${expoUsername}/mobile`
     : undefined;
 
-    const googleAndroidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || "";
+  const activeRedirectUri =
+    Platform.OS === "android" ? androidRedirectUri : webRedirectUri;
 
   const [googleRequest, googleResponse, promptGoogleAsync] = GoogleAuth?.useAuthRequest
     ? GoogleAuth.useAuthRequest({
         androidClientId: googleAndroidClientId || undefined,
         webClientId: googleClientId || undefined,
         ...(Platform.OS === "web" && googleClientId ? { clientId: googleClientId } : {}),
-        ...(redirectUri ? { redirectUri } : {}),
+        ...(activeRedirectUri ? { redirectUri: activeRedirectUri } : {}),
       })
     : [null, null, null];
 
@@ -138,7 +145,7 @@ export default function AuthScreen() {
   useEffect(() => {
     if (googleResponse?.type === 'success') {
       const accessToken = googleResponse.authentication?.accessToken;
-      const idToken = googleResponse.params?.id_token;
+      const idToken = googleResponse.authentication?.idToken || googleResponse.params?.id_token;
       if (accessToken || idToken) {
         (async () => {
           setGoogleLoading(true);
