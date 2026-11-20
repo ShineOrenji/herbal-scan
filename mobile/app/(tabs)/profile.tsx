@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -55,6 +56,21 @@ export default function ProfileScreen() {
 
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener("keyboardDidShow", (e) => {
+      setKeyboardHeight(e.endCoordinates?.height || 280);
+    });
+    const hideSub = Keyboard.addListener("keyboardDidHide", () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const refreshUserRef = useRef(refreshUser);
   refreshUserRef.current = refreshUser;
@@ -192,12 +208,16 @@ export default function ProfileScreen() {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
+          ref={scrollViewRef}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            keyboardHeight > 0 && { paddingBottom: keyboardHeight + 48 },
+          ]}
         >
           <View style={styles.headerBlock}>
             <Text style={styles.pageTitle}>
@@ -400,6 +420,7 @@ export default function ProfileScreen() {
                       <Ionicons name="lock-closed-outline" size={18} color={C.leafSoft} />
                       <TextInput
                         value={currentPassword}
+                        onFocus={() => setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 140)}
                         onChangeText={setCurrentPassword}
                         placeholder="Masukkan kata sandi lama"
                         placeholderTextColor={C.textFaint}
@@ -423,6 +444,7 @@ export default function ProfileScreen() {
                   <Ionicons name="lock-open-outline" size={18} color={C.leafSoft} />
                   <TextInput
                     value={newPassword}
+                        onFocus={() => setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 140)}
                     onChangeText={setNewPassword}
                     placeholder="Minimal 8 karakter"
                     placeholderTextColor={C.textFaint}
@@ -444,6 +466,7 @@ export default function ProfileScreen() {
                   <Ionicons name="checkmark-circle-outline" size={18} color={C.leafSoft} />
                   <TextInput
                     value={confirmPassword}
+                        onFocus={() => setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 140)}
                     onChangeText={setConfirmPassword}
                     placeholder="Ulangi kata sandi baru"
                     placeholderTextColor={C.textFaint}

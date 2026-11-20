@@ -15,7 +15,8 @@
         "foregroundImage": "./assets/android-icon-foreground.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.fhmirmdnn.HerbalScan"
+      "package": "com.fhmirmdnn.HerbalScan",
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "favicon": "./assets/favicon.png"
