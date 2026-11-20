@@ -28,7 +28,7 @@ class HerbalVisionService
 
         // Cache v2 agar hasil lama yang keliru tidak terpakai ulang
         $normalizedHash = hash('sha256', $base64Image);
-        $cacheKey = "herbal_vision_pool_v2_{$normalizedHash}";
+        $cacheKey = "herbal_vision_pool_v3_{$normalizedHash}";
         $cached = Cache::get($cacheKey);
         if (is_array($cached) && !empty($cached['detected_plants'])) {
             return $cached;
@@ -76,9 +76,10 @@ ATURAN PEMBEDA SPESIES MIRIP DI INDONESIA (WAJIB DIPATUHI):
 - **Tanaman Beracun (WAJIB `is_toxic`: true & akhiran `" (Beracun)"` pada `common_name_id`)**:
   - Meskipun suatu tanaman memiliki pemanfaatan tradisional, JIKA tanaman tersebut mengandung senyawa toksik berbahaya bagi manusia/hewan (seperti *Pokeweed* / *Phytolacca americana*, *Saga Rambat* / *Abrus precatorius*, *Kecubung* / *Datura metel*, *Bunga Terompet* / *Brugmansia*, *Jarak Pagar* / *Jatropha curcas*, *Jarak Kepyar* / *Ricinus communis*, *Bintaro* / *Cerbera manghas*, *Gadung* / *Dioscorea hispida*, *Patah Tulang* / *Euphorbia tirucalli*, *Tapak Dara* / *Catharanthus roseus*, *Tembelekan* / *Lantana camara*, *Dieffenbachia*, dan *Oleander* / *Nerium oleander*), Anda WAJIB menetapkan `"is_toxic": true` dan menambahkan `" (Beracun)"` pada `common_name_id`.
 
-ATURAN TOLERANSI FOTO:
-- Jangan menolak foto tumbuhan hanya karena diambil dari jarak dekat (macro), sudut miring, atau sebagian daun terpotong bingkai. Selama bagian tumbuhan terlihat, identifikasi spesies paling akurat (`is_plant`: true, `is_confident_species`: true).
-- Tolak (`is_plant`: false) HANYA jika foto bukan tumbuhan (manusia, hewan, benda mati) atau makanan/masakan matang (`is_cooked_or_processed_food`: true).
+ATURAN VALIDASI KUALITAS FOTO & ANTI-HALUSINASI (WAJIB):
+- **Tolak Foto Tidak Fokus / Asal Jepret**: Jika foto buram/goyang (*blur*), kamera terlalu jauh sehingga daun tampak kecil di antara semak/tanah, pencahayaan terlalu gelap/silau, atau kamera tidak mengarah jelas ke bagian tumbuhan tertentu, JANGAN MENEBAK SPESIES. Wajib isi `"is_confident_species": false`, `"confidence": 35`, dan tulis panduan spesifik di `"rejection_reason"` dalam Bahasa Indonesia (contoh: *"Foto terlihat buram atau kamera terlalu jauh dari daun. Dekatkan kamera 15–30 cm ke satu helai daun utama hingga urat daun terlihat jelas, lalu pindai ulang."*).
+- **Toleransi Sudut Terkendali**: Jika foto tajam dan fokus pada spesimen (meski sudut miring atau close-up macro), identifikasi spesies yang paling akurat (`is_plant`: true, `is_confident_species`: true).
+- **Bukan Tumbuhan / Makanan Matang**: Jika objek bukan tumbuhan atau berupa masakan/olahan matang, wajib isi `"is_plant": false` dan jelaskan alasannya di `"rejection_reason"`.
 
 Kembalikan persis struktur JSON berikut:
 {

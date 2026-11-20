@@ -424,7 +424,7 @@ class HerbalController extends Controller
             $confidence = (int) ($plantData['confidence'] ?? 0);
             $isConfidentSpecies = (bool) ($plantData['is_confident_species'] ?? false);
 
-            if ($confidence < 55 || (!$isConfidentSpecies && $confidence < 65)) {
+            if (!$isConfidentSpecies || $confidence < 78) {
                 continue;
             }
 
@@ -468,7 +468,7 @@ class HerbalController extends Controller
                 'is_toxic' => false,
                 'message' => !empty($vision['rejection_reason'])
                     ? $vision['rejection_reason']
-                    : 'Bentuk helai dan tangkai daun belum terlihat cukup tajam untuk memastikan spesiesnya secara akurat. Coba foto ulang lebih dekat.',
+                    : 'Foto kurang fokus atau kamera belum mengarah jelas ke spesimen tanaman. Dekatkan kamera 15–30 cm ke satu helai daun/bunga dengan cahaya terang hingga tekstur daun terlihat jelas, lalu pindai ulang.',
                 'plants' => [],
                 'top_3' => [],
                 'source' => 'low_confidence_rejected',
