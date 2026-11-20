@@ -10,8 +10,12 @@ class CloudinaryService
 {
     private function parseCredentials(): array
     {
-        $url = config('services.cloudinary.url') ?: env('CLOUDINARY_URL');
-        if (empty($url)) {
+        $raw = config('services.cloudinary.url')
+            ?: env('CLOUDINARY_URL')
+            ?: ($_SERVER['CLOUDINARY_URL'] ?? $_ENV['CLOUDINARY_URL'] ?? getenv('CLOUDINARY_URL') ?: '');
+
+        $url = trim((string) $raw, " \t\n\r\0\x0B\"'");
+        if ($url === '') {
             throw new RuntimeException('CLOUDINARY_URL belum dikonfigurasi pada environment.');
         }
 
@@ -21,9 +25,9 @@ class CloudinaryService
         }
 
         return [
-            'cloud_name' => $parsed['host'],
-            'api_key' => $parsed['user'],
-            'api_secret' => $parsed['pass'],
+            'cloud_name' => trim($parsed['host']),
+            'api_key' => urldecode($parsed['user']),
+            'api_secret' => urldecode($parsed['pass']),
         ];
     }
 
@@ -33,7 +37,12 @@ class CloudinaryService
         $timestamp = time();
         $signature = sha1("folder={$folder}&timestamp={$timestamp}{$creds['api_secret']}");
 
-        $response = Http::timeout(30)
+        $response = Http::withOptions([
+            'force_ip_resolve' => 'v4',
+            'version' => 1.1,
+        ])
+            ->connectTimeout(8)
+            ->timeout(25)
             ->attach('file', file_get_contents($filePath), basename($filePath) . '.jpg')
             ->post("https://api.cloudinary.com/v1_1/{$creds['cloud_name']}/image/upload", [
                 'api_key' => $creds['api_key'],
@@ -69,15 +78,21 @@ class CloudinaryService
             $timestamp = time();
             $signature = sha1("public_id={$publicId}&timestamp={$timestamp}{$creds['api_secret']}");
 
-            Http::timeout(15)->asForm()->post(
-                "https://api.cloudinary.com/v1_1/{$creds['cloud_name']}/image/destroy",
-                [
-                    'public_id' => $publicId,
-                    'api_key' => $creds['api_key'],
-                    'timestamp' => $timestamp,
-                    'signature' => $signature,
-                ]
-            );
+            Http::withOptions([
+                'force_ip_resolve' => 'v4',
+                'version' => 1.1,
+            ])
+                ->timeout(15)
+                ->asForm()
+                ->post(
+                    "https://api.cloudinary.com/v1_1/{$creds['cloud_name']}/image/destroy",
+                    [
+                        'public_id' => $publicId,
+                        'api_key' => $creds['api_key'],
+                        'timestamp' => $timestamp,
+                        'signature' => $signature,
+                    ]
+                );
         } catch (\Throwable $e) {
             Log::warning('Gagal menghapus gambar lama di Cloudinary: ' . $e->getMessage());
         }
