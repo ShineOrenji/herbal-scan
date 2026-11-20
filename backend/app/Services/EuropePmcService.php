@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Log;
 
 class EuropePmcService
 {
-    private const MIN_YEAR = 2020;
+    private const MIN_YEAR = 2016;
 
     public function fetchReferences(string $scientificName, int $limit = 3): array
     {
@@ -56,8 +56,9 @@ class EuropePmcService
     private function queryEuropePmc(string $query, int $limit): array
     {
         try {
-            $response = Http::connectTimeout(3)
-                ->timeout(6)
+            $response = Http::withOptions(['force_ip_resolve' => 'v4', 'version' => 1.1])
+                ->connectTimeout(4)
+                ->timeout(7)
                 ->withHeaders([
                     'Accept' => 'application/json',
                     'User-Agent' => 'HerbalScan-BotanicalApp/1.0',
@@ -116,8 +117,9 @@ class EuropePmcService
     private function queryCrossref(string $scientificName, int $limit): array
     {
         try {
-            $response = Http::connectTimeout(3)
-                ->timeout(6)
+            $response = Http::withOptions(['force_ip_resolve' => 'v4', 'version' => 1.1])
+                ->connectTimeout(4)
+                ->timeout(7)
                 ->withHeaders([
                     'Accept' => 'application/json',
                     'User-Agent' => 'HerbalScan-BotanicalApp/1.0 (mailto:research@herbalscan.local)',
@@ -183,8 +185,9 @@ class EuropePmcService
     private function queryOpenAlex(string $scientificName, int $limit): array
     {
         try {
-            $response = Http::connectTimeout(3)
-                ->timeout(6)
+            $response = Http::withOptions(['force_ip_resolve' => 'v4', 'version' => 1.1])
+                ->connectTimeout(4)
+                ->timeout(7)
                 ->withHeaders([
                     'Accept' => 'application/json',
                     'User-Agent' => 'HerbalScan-BotanicalApp/1.0',
