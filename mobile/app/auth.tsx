@@ -155,7 +155,7 @@ export default function AuthScreen() {
               access_token: accessToken,
               id_token: idToken,
             });
-            router.back();
+            router.replace("/(tabs)");
           } catch (err: any) {
             setErrorMsg(
               err?.response?.data?.message || 'Gagal memverifikasi akun Google ke server.'
