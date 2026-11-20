@@ -11,10 +11,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#06140D",
+        "foregroundImage": "./assets/android-icon-foreground.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.fhmirmdnn.HerbalScan"
@@ -26,7 +24,16 @@
       "expo-router",
       "expo-status-bar",
       "expo-web-browser",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#06140D",
+          "image": "./assets/android-icon-foreground.png",
+          "imageWidth": 170,
+          "resizeMode": "contain"
+        }
+      ]
     ],
     "extra": {
       "router": {
@@ -42,6 +49,12 @@
       "herbalscan",
       "com.fhmirmdnn.HerbalScan",
       "com.googleusercontent.apps.772055532330-ovlurcou2ljnsp35iglgab2j9oeaoma7"
-    ]
+    ],
+    "backgroundColor": "#06140D",
+    "splash": {
+      "image": "./assets/android-icon-foreground.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#06140D"
+    }
   }
 }
