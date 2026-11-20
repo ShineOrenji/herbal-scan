@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -40,6 +40,15 @@ type AuthMode = 'login' | 'register';
 
 export default function AuthScreen() {
   const router = useRouter();
+  const didRedirectHome = useRef(false);
+  const goToTabsOnce = () => {
+    if (didRedirectHome.current) return;
+    didRedirectHome.current = true;
+    if (typeof (router as any).dismissAll === "function" && router.canGoBack()) {
+      (router as any).dismissAll();
+    }
+    goToTabsOnce();
+  };
   const params = useLocalSearchParams<{ mode?: string }>();
   const {
     loginWithCredentials,
@@ -89,7 +98,7 @@ export default function AuthScreen() {
     try {
       await verifyRegisterOtp(regEmail.trim().toLowerCase(), cleanOtp);
       await clearPendingOtpEmail();
-      router.back();
+      goToTabsOnce();
     } catch (err: any) {
       setErrorMsg(extractApiError(err, 'Kode OTP tidak valid atau sudah kedaluwarsa.'));
     } finally {
@@ -155,7 +164,7 @@ export default function AuthScreen() {
               access_token: accessToken,
               id_token: idToken,
             });
-            router.replace("/(tabs)");
+            goToTabsOnce();
           } catch (err: any) {
             setErrorMsg(
               err?.response?.data?.message || 'Gagal memverifikasi akun Google ke server.'
@@ -195,7 +204,7 @@ export default function AuthScreen() {
     setSubmitting(true);
     try {
       await loginWithCredentials(identifier.trim(), loginPassword);
-      router.back();
+      goToTabsOnce();
     } catch (err: any) {
       setErrorMsg(extractApiError(err, 'Gagal masuk. Periksa Gmail / No. HP dan kata sandi.'));
     } finally {

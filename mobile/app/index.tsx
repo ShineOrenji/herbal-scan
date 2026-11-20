@@ -143,13 +143,6 @@ export default function WelcomeEntryScreen() {
     return () => clearInterval(check);
   }, [isReady, isLoggedIn, router]);
 
-  // Otomatis arahkan ke Beranda jika pengguna baru saja selesai login/register dari halaman /auth
-  useEffect(() => {
-    if (splashDone && isLoggedIn) {
-      router.replace('/(tabs)');
-    }
-  }, [splashDone, isLoggedIn, router]);
-
   const barWidth = progressAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['10%', '100%'],

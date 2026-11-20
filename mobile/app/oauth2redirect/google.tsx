@@ -15,7 +15,7 @@ export default function GoogleOAuthCallback() {
       } else {
         router.replace('/auth');
       }
-    }, 4000);
+    }, 120);
 
     return () => clearTimeout(timer);
   }, [router]);
