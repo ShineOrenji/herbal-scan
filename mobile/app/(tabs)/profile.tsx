@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -56,18 +56,27 @@ export default function ProfileScreen() {
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
 
+  const refreshUserRef = useRef(refreshUser);
+  refreshUserRef.current = refreshUser;
+  const syncedUserIdRef = useRef<number | null>(null);
+
   useFocusEffect(
     useCallback(() => {
-      if (user) {
-        refreshUser();
+      if (user?.id) {
+        refreshUserRef.current?.();
       }
-    }, [user, refreshUser])
+    }, [user?.id])
   );
 
   useEffect(() => {
-    if (user) {
+    if (user?.id && syncedUserIdRef.current !== user.id) {
+      syncedUserIdRef.current = user.id;
       setName(user.name || '');
       setPhone(user.phone || '');
+    } else if (!user) {
+      syncedUserIdRef.current = null;
+      setName('');
+      setPhone('');
     }
   }, [user]);
 
