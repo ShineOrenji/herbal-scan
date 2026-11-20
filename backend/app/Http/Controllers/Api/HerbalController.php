@@ -58,7 +58,9 @@ class HerbalController extends Controller
             }
         }
 
-        if (!empty($missingMap)) {
+        $batchCacheKey = 'herbal_batch_photos_' . md5(json_encode(array_keys($missingMap)));
+        if (!empty($missingMap) && !\Illuminate\Support\Facades\Cache::has($batchCacheKey)) {
+            \Illuminate\Support\Facades\Cache::put($batchCacheKey, true, 21600);
             try {
                 $batchPhotos = $this->botanicalImageService->fetchBatchReferencePhotos($missingMap);
                 foreach ($herbals as $item) {
@@ -85,8 +87,14 @@ class HerbalController extends Controller
             ->where('slug', $slug)
             ->firstOrFail();
 
+        $enrichCacheKey = 'herbal_enriched_' . $herbal->slug;
+        $canEnrichRemote = !\Illuminate\Support\Facades\Cache::has($enrichCacheKey);
+        if ($canEnrichRemote) {
+            \Illuminate\Support\Facades\Cache::put($enrichCacheKey, true, 86400);
+        }
+
         $needsPhoto = empty($herbal->image_url) || str_contains(strtolower((string) $herbal->image_url), 'wikimedia.org');
-        if ($needsPhoto && !empty($herbal->scientific_name)) {
+        if ($canEnrichRemote && $needsPhoto && !empty($herbal->scientific_name)) {
             try {
                 $refPhoto = $this->botanicalImageService->fetchReferencePhoto($herbal->scientific_name, $herbal->name);
                 if ($refPhoto) {
@@ -114,7 +122,7 @@ class HerbalController extends Controller
 
         $fetchedFallbackRefs = [];
 
-        if ($herbal->references->count() < 2 && !empty($herbal->scientific_name)) {
+        if ($canEnrichRemote && $herbal->references->count() < 2 && !empty($herbal->scientific_name)) {
             try {
                 $references = $this->journalService->fetchReferences($herbal->scientific_name, 3);
                 if (!empty($references)) {
@@ -332,7 +340,12 @@ class HerbalController extends Controller
             ) {
                 $fallbackHerbal = Herbal::where('slug', $tfliteResult['slug'])->first();
                 if ($fallbackHerbal) {
-                    $publicScanPath = app(\App\Services\CloudinaryService::class)->upload($fullImagePath, 'herbal-scan/history_scans');
+                    try {
+                        $publicScanPath = app(\App\Services\CloudinaryService::class)->upload($fullImagePath, 'herbal-scan/history_scans');
+                    } catch (\Throwable $e) {
+                        \Illuminate\Support\Facades\Log::warning('Cloudinary fallback dilewati: ' . $e->getMessage());
+                        $publicScanPath = '';
+                    }
                     $history = $userId !== null
                         ? $this->recordHistory($userId, $fallbackHerbal->slug, (float) $tfliteResult['confidence'], $publicScanPath)
                         : null;
@@ -412,7 +425,12 @@ class HerbalController extends Controller
             $seenSlugsInFrame[$herbal->slug] = true;
 
             if ($publicScanPath === null) {
-                $publicScanPath = app(\App\Services\CloudinaryService::class)->upload($fullImagePath, 'herbal-scan/history_scans');
+                try {
+                    $publicScanPath = app(\App\Services\CloudinaryService::class)->upload($fullImagePath, 'herbal-scan/history_scans');
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('Cloudinary upload dilewati: ' . $e->getMessage());
+                    $publicScanPath = '';
+                }
                 $scanFrameUrl = $publicScanPath;
             }
 
