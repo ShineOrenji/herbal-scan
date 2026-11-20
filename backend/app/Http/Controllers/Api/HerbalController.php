@@ -49,6 +49,11 @@ class HerbalController extends Controller
 
         $missingMap = [];
         foreach ($herbals as $item) {
+            if ($item->is_toxic && !str_contains(strtolower((string) $item->name), 'beracun')) {
+                $fixedName = trim((string) $item->name) . ' (Beracun)';
+                Model::unguarded(fn () => $item->forceFill(['name' => $fixedName])->saveQuietly());
+                $item->name = $fixedName;
+            }
             $needsPhoto = empty($item->image_url) || str_contains(strtolower((string) $item->image_url), 'wikimedia.org');
             if ($needsPhoto && !empty($item->scientific_name)) {
                 $missingMap[$item->id] = [
@@ -86,6 +91,12 @@ class HerbalController extends Controller
         $herbal = Herbal::with('references')
             ->where('slug', $slug)
             ->firstOrFail();
+
+        if ($herbal->is_toxic && !str_contains(strtolower((string) $herbal->name), 'beracun')) {
+            $fixedName = trim((string) $herbal->name) . ' (Beracun)';
+            Model::unguarded(fn () => $herbal->forceFill(['name' => $fixedName])->saveQuietly());
+            $herbal->name = $fixedName;
+        }
 
         $enrichCacheKey = 'herbal_enriched_' . $herbal->slug;
         $canEnrichRemote = !\Illuminate\Support\Facades\Cache::has($enrichCacheKey);
@@ -255,7 +266,7 @@ class HerbalController extends Controller
                     'created_at' => $history->created_at?->toIso8601String(),
                     'plant_name' => $history->herbal?->name ?? Str::headline($history->detected_slug),
                     'scientific_name' => $history->herbal?->scientific_name ?? '',
-                    'is_toxic' => str_contains(strtolower((string) ($history->herbal?->name ?? '')), 'beracun'),
+                    'is_toxic' => (bool) ($history->herbal?->is_toxic ?? false) || str_contains(strtolower((string) ($history->herbal?->name ?? '')), 'beracun'),
                 ];
             });
 
