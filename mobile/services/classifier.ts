@@ -1,3 +1,4 @@
+import * as ImageManipulator from "expo-image-manipulator";
 import { Platform } from 'react-native';
 import * as ApiModule from './api';
 
@@ -100,7 +101,20 @@ function uploadFormData(
   });
 }
 
-export async function classifyImage(imageUri: string): Promise<ClassificationResponse> {
+export async function classifyImage(rawImageUri: string): Promise<ClassificationResponse> {
+  let imageUri = rawImageUri;
+  try {
+    const manipulated = await ImageManipulator.manipulateAsync(
+      rawImageUri,
+      [{ resize: { width: 1024 } }],
+      { compress: 0.72, format: ImageManipulator.SaveFormat.JPEG }
+    );
+    if (manipulated?.uri) {
+      imageUri = manipulated.uri;
+    }
+  } catch {
+    // Gunakan foto asli jika kompresi dilewati
+  }
   const baseUrl = resolveBaseUrl();
   const targetUrls = buildTargetUrls(baseUrl);
 

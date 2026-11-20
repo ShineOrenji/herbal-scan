@@ -116,12 +116,15 @@ export default function AuthScreen() {
     ? `https://auth.expo.io/@${expoUsername}/mobile`
     : undefined;
 
-    const [googleRequest, googleResponse, promptGoogleAsync] = GoogleAuth?.useAuthRequest
+    const googleAndroidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || "";
+
+  const [googleRequest, googleResponse, promptGoogleAsync] = GoogleAuth?.useAuthRequest
     ? GoogleAuth.useAuthRequest({
-        clientId: googleClientId || 'unconfigured-client-id',
-        webClientId: googleClientId || 'unconfigured-client-id',
-        redirectUri,
-        })
+        androidClientId: googleAndroidClientId || undefined,
+        webClientId: googleClientId || undefined,
+        ...(Platform.OS === "web" && googleClientId ? { clientId: googleClientId } : {}),
+        ...(redirectUri ? { redirectUri } : {}),
+      })
     : [null, null, null];
 
   useEffect(() => {

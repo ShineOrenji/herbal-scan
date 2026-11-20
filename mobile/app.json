@@ -25,7 +25,8 @@
     "plugins": [
       "expo-router",
       "expo-status-bar",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-font"
     ],
     "extra": {
       "router": {
@@ -36,6 +37,11 @@
       "eas": {
         "projectId": "9e69f766-5d30-4571-9565-2b9ead9659a5"
       }
-    }
+    },
+    "scheme": [
+      "herbalscan",
+      "com.fhmirmdnn.HerbalScan",
+      "com.googleusercontent.apps.772055532330-ovlurcou2ljnsp35iglgab2j9oeaoma7"
+    ]
   }
 }
