@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -78,6 +79,16 @@ function ReticleLaser({ size }: { size: number }) {
     </Animated.View>
   );
 }
+
+const saveLocalScanPhoto = async (slug: string, uri: string) => {
+  if (!slug || !uri) return;
+  try {
+    const raw = await AsyncStorage.getItem("herbal_local_scan_photos");
+    const map = raw ? JSON.parse(raw) : {};
+    map[slug] = uri;
+    await AsyncStorage.setItem("herbal_local_scan_photos", JSON.stringify(map));
+  } catch {}
+};
 
 export default function ScanScreen() {
   const router = useRouter();
@@ -471,6 +482,7 @@ export default function ScanScreen() {
 
       const single = data.plants[0];
       const resolvedPhoto = single.scan_image_url || data.scan_image_url || photoUri;
+      await saveLocalScanPhoto(single.slug, photoUri);
 
       router.push({
         pathname: '/detail/[slug]',
@@ -493,6 +505,7 @@ export default function ScanScreen() {
 
   const openDetectedPlantDetail = (plant: DetectedPlantItem) => {
     const resolvedPhoto = plant.scan_image_url || detectedFrameUrl || photoUri || '';
+    if (photoUri) { saveLocalScanPhoto(plant.slug, photoUri); }
     router.push({
       pathname: '/detail/[slug]',
       params: {

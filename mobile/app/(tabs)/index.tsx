@@ -548,24 +548,27 @@ export default function HomeScreen() {
 
                   <View style={styles.plantCardContent}>
                     <View style={styles.plantCardTopRow}>
-                      <Text style={styles.featuredName} numberOfLines={1}>
-                      {item.name}
-                    </Text>
-                      <View
-                        style={[
-                          styles.keywordTagBadge,
-                          badge.toxic && styles.keywordTagBadgeToxic,
-                        ]}
-                      >
-                        <Text
+                      <Text style={styles.plantName} numberOfLines={1}>
+                        {item.name}
+                      </Text>
+                      {(badge.toxic || (item.name || "").length <= 20) && (
+                        <View
                           style={[
-                            styles.keywordTagText,
-                            badge.toxic && { color: '#ffffff' },
+                            styles.keywordTagBadge,
+                            badge.toxic && styles.keywordTagBadgeToxic,
                           ]}
                         >
-                          {badge.label}
-                        </Text>
-                      </View>
+                          <Text
+                            numberOfLines={1}
+                            style={[
+                              styles.keywordTagText,
+                              badge.toxic && { color: '#ffffff' },
+                            ]}
+                          >
+                            {badge.label}
+                          </Text>
+                        </View>
+                      )}
                     </View>
 
                     <Text style={styles.plantScientific} numberOfLines={1}>
@@ -861,12 +864,17 @@ const styles = StyleSheet.create({
   plantCardContent: { flex: 1, gap: 3 },
   plantCardTopRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   plantName: {
+    flex: 1,
     flexShrink: 1,
-    fontSize: 15.5,
-    fontWeight: '800',
+    fontSize: 15,
+    fontWeight: "800",
     color: C.white,
   },
   keywordTagBadge: {
+    flexShrink: 0,
+    maxWidth: 104,
+    flexShrink: 0,
+    maxWidth: 108,
     backgroundColor: 'rgba(74, 222, 128, 0.2)',
     borderWidth: 1,
     borderColor: 'rgba(134, 239, 172, 0.35)',

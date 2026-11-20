@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { getHerbalBySlug } from '../../services/api';
+import { getCachedHerbalBySlug, getHerbalBySlug } from '../../services/api';
 import { HerbalDetail } from '../../types/herbal';
 import BotanicalBackdrop from '../../components/BotanicalBackdrop';
 import GlassView from '../../components/GlassView';
@@ -48,8 +48,9 @@ export default function HerbalDetailScreen() {
     ? params.confidence[0]
     : params.confidence;
 
-  const [herbal, setHerbal] = useState<HerbalDetail | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const initialCached = slug ? getCachedHerbalBySlug(slug) : null;
+  const [herbal, setHerbal] = useState<HerbalDetail | null>(initialCached);
+  const [loading, setLoading] = useState<boolean>(!initialCached);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<DetailTab>('all');
@@ -225,7 +226,7 @@ function DetailBody({
 }: DetailBodyProps) {
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  const isToxic = (herbal.name || '').toLowerCase().includes('beracun');
+  const isToxic = Boolean((herbal as any).is_toxic) || (herbal.name || '').toLowerCase().includes('beracun');
   const heroImage = scannedImage || herbal.image_url || null;
   const references = Array.isArray(herbal.references) ? herbal.references : [];
 

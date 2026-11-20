@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -83,6 +84,11 @@ export default function HistoryScreen() {
 
     try {
       const list = await getScanHistories();
+      let localMap: Record<string, string> = {};
+      try {
+        const rawMap = await AsyncStorage.getItem("herbal_local_scan_photos");
+        if (rawMap) localMap = JSON.parse(rawMap);
+      } catch {}
       const normalized: HistoryEntry[] = (Array.isArray(list) ? list : []).map(
         (raw: any, index: number) => {
           const plantName = raw?.plant_name || raw?.detected_slug || 'Spesimen Herbal';
@@ -90,7 +96,7 @@ export default function HistoryScreen() {
             id: Number(raw?.id ?? index + 1),
             detected_slug: raw?.detected_slug || '',
             confidence_score: Number(raw?.confidence_score ?? 0),
-            image_url: raw?.image_url || null,
+            image_url: raw?.scan_image_url || localMap[raw?.detected_slug] || raw?.image_url || null,
             created_at: raw?.created_at || '',
             plant_name: plantName,
             scientific_name: raw?.scientific_name || '',

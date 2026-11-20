@@ -168,6 +168,11 @@ export const getHerbalCatalog = async (searchQuery?: string): Promise<HerbalDeta
   return res.plants;
 };
 
+export const getCachedHerbalBySlug = (slug: string): HerbalDetail | null => {
+  if (!slug) return null;
+  return memoryDetailCache[slug] || memoryCatalogCache.find((item) => item.slug === slug) || null;
+};
+
 export const getHerbalBySlug = async (slug: string): Promise<HerbalDetail> => {
   try {
     const response = await apiClient.get(`/herbals/slug/${slug}`);
