@@ -370,17 +370,44 @@ class AuthController extends Controller
 
     public function updateAvatar(Request $request): JsonResponse
     {
-        $request->validate([
-            'avatar' => ['required', 'file', 'max:5120'],
-        ], [
-            'avatar.required' => 'Pilih file foto profil terlebih dahulu.',
-            'avatar.max' => 'Ukuran foto profil maksimal 5 MB.',
-        ]);
+        $tempFile = null;
+        $realPath = null;
 
-        $uploadedFile = $request->file('avatar');
-        $realPath = $uploadedFile?->getRealPath();
+        if ($request->filled('avatar_base64')) {
+            $rawBase64 = (string) $request->input('avatar_base64');
+            if (str_contains($rawBase64, ',')) {
+                $rawBase64 = explode(',', $rawBase64, 2)[1];
+            }
+            $binary = base64_decode($rawBase64, true);
+            if ($binary === false || strlen($binary) < 100) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Data gambar profil tidak valid.',
+                ], 422);
+            }
+            if (strlen($binary) > 5 * 1024 * 1024) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Ukuran foto profil maksimal 5 MB.',
+                ], 422);
+            }
+            $tempFile = tempnam(sys_get_temp_dir(), 'avatar_') . '.jpg';
+            file_put_contents($tempFile, $binary);
+            $realPath = $tempFile;
+        } else {
+            $request->validate([
+                'avatar' => ['required', 'file', 'max:5120'],
+            ], [
+                'avatar.required' => 'Pilih file foto profil terlebih dahulu.',
+                'avatar.max' => 'Ukuran foto profil maksimal 5 MB.',
+            ]);
+            $realPath = $request->file('avatar')?->getRealPath();
+        }
 
         if (!$realPath || @getimagesize($realPath) === false) {
+            if ($tempFile && file_exists($tempFile)) {
+                @unlink($tempFile);
+            }
             return response()->json([
                 'status' => 'error',
                 'message' => 'File yang dipilih bukan gambar yang valid (JPG/PNG/WEBP).',
@@ -403,7 +430,6 @@ class AuthController extends Controller
                         Storage::disk('public')->delete($oldPath);
                     }
                 } catch (\Throwable) {
-                    // Abaikan kegagalan hapus file lama pada filesystem read-only
                 }
             }
 
@@ -420,6 +446,10 @@ class AuthController extends Controller
                 'status' => 'error',
                 'message' => 'Gagal mengunggah foto profil: ' . $e->getMessage(),
             ], 500);
+        } finally {
+            if ($tempFile && file_exists($tempFile)) {
+                @unlink($tempFile);
+            }
         }
     }
 
