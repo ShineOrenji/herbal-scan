@@ -51,7 +51,7 @@ class HerbalController extends Controller
         foreach ($herbals as $item) {
             if ($item->is_toxic && !str_contains(strtolower((string) $item->name), 'beracun')) {
                 $fixedName = trim((string) $item->name) . ' (Beracun)';
-                Model::unguarded(fn () => $item->forceFill(['name' => $fixedName])->saveQuietly());
+                try { \Illuminate\Support\Facades\DB::table('herbals')->where('id', $item->id)->update(['name' => $fixedName]); } catch (\Throwable) {}
                 $item->name = $fixedName;
             }
             $needsPhoto = empty($item->image_url) || str_contains(strtolower((string) $item->image_url), 'wikimedia.org');
@@ -94,7 +94,7 @@ class HerbalController extends Controller
 
         if ($herbal->is_toxic && !str_contains(strtolower((string) $herbal->name), 'beracun')) {
             $fixedName = trim((string) $herbal->name) . ' (Beracun)';
-            Model::unguarded(fn () => $herbal->forceFill(['name' => $fixedName])->saveQuietly());
+            try { \Illuminate\Support\Facades\DB::table('herbals')->where('id', $herbal->id)->update(['name' => $fixedName]); } catch (\Throwable) {}
             $herbal->name = $fixedName;
         }
 
