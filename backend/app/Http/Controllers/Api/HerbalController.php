@@ -501,7 +501,10 @@ class HerbalController extends Controller
             return null;
         }
 
-        $baseNameWithoutTag = preg_replace('/\s*\(Beracun\)\s*/i', '', $commonName);
+        $isToxic = (bool) ($plantData['is_toxic'] ?? false) || (bool) preg_match('/\(\s*beracun\s*\)/i', $commonName);
+        $baseNameWithoutTag = trim((string) preg_replace('/\s*\([^)]*\)/', '', $commonName));
+        $commonName = $isToxic ? "{$baseNameWithoutTag} (Beracun)" : $baseNameWithoutTag;
+
         $rawSlug = Str::slug($baseNameWithoutTag, '_');
         $coreSlug = preg_replace('/^(daun|pohon|tanaman|bunga|buah|rimpang|akar)_/', '', $rawSlug);
 
@@ -509,7 +512,12 @@ class HerbalController extends Controller
         $herbal = Herbal::whereIn('slug', $slugCandidates)->first();
 
         if (!$herbal && $canonicalScientific !== '') {
-            $herbal = Herbal::where('scientific_name', $canonicalScientific)->first();
+            $sciParts = array_values(array_filter(explode(' ', $canonicalScientific)));
+            if (count($sciParts) >= 2) {
+                $herbal = Herbal::where('scientific_name', 'LIKE', "{$sciParts[0]}%{$sciParts[1]}%")->first();
+            } else {
+                $herbal = Herbal::where('scientific_name', 'LIKE', "{$canonicalScientific}%")->first();
+            }
         }
 
         $isToxic = (bool) ($plantData['is_toxic'] ?? false);

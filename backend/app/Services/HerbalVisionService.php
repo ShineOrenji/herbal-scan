@@ -36,7 +36,7 @@ class HerbalVisionService
         $knownHint = '';
         if (!empty($knownSpecies)) {
             $pairs = array_map(
-                fn ($item) => "{$item['name']} ({$item['scientific_name']})",
+                fn ($item) => $item['name'],
                 array_slice($knownSpecies, 0, 60)
             );
             $knownHint = "CATATAN PENAMAAN KATALOG: Identifikasi spesies tumbuhan yang SEBENARNYA di dunia berdasarkan botani murni terlebih dahulu (JANGAN memaksakan cocok ke daftar ini jika spesiesnya berbeda). HANYA jika spesiesnya memang sama persis, gunakan format nama Indonesia & ilmiah berikut: " . implode(', ', $pairs) . ".\n\n";
@@ -373,7 +373,7 @@ PROMPT;
             }
 
             $plants[] = [
-                'common_name_id' => trim((string) ($item['common_name_id'] ?? '')),
+                'common_name_id' => $this->sanitizeCommonName((string) ($item['common_name_id'] ?? ''), (bool) ($item['is_toxic'] ?? false)),
                 'scientific_name' => trim((string) ($item['scientific_name'] ?? '')),
                 'local_name' => trim((string) ($item['local_name'] ?? '')),
                 'description' => trim((string) ($item['description'] ?? '')),
@@ -395,5 +395,16 @@ PROMPT;
             'rejection_reason' => isset($decoded['rejection_reason']) ? trim((string) $decoded['rejection_reason']) : null,
             'detected_plants' => $plants,
         ];
+    }
+
+    private function sanitizeCommonName(string $rawName, bool $isToxic): string
+    {
+        $hasToxicTag = $isToxic || (bool) preg_match('/\(\s*beracun\s*\)/i', $rawName);
+        $clean = preg_replace('/\s*\([^)]*\)/', '', $rawName);
+        $clean = preg_replace('/\s+/', ' ', trim((string) $clean));
+        if ($clean === '') {
+            return '';
+        }
+        return $hasToxicTag ? "{$clean} (Beracun)" : $clean;
     }
 }
