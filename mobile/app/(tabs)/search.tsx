@@ -352,7 +352,7 @@ export default function SearchScreen() {
           setConnectionError(null);
         } else if (allHerbals.length === 0) {
           setConnectionError(
-            'Belum dapat terhubung ke katalog server Laravel. Pastikan server berjalan dengan --host=0.0.0.0.'
+            'Tidak dapat terhubung ke server HerbalScan. Periksa koneksi internet Anda lalu coba lagi.'
           );
         }
       } finally {

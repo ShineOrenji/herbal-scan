@@ -162,7 +162,7 @@ export default function HomeScreen() {
       if (parsedList.length === 0) {
         const client = findAxiosClient();
         if (client?.get) {
-          for (const endpoint of ['/herbals', '/herbal', '/plants']) {
+          for (const endpoint of ['/herbals']) {
             try {
               const res = await client.get(endpoint);
               parsedList = deepExtractArray(res);
