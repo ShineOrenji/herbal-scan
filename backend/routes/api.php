@@ -42,12 +42,3 @@ Route::post('/_temp_reset_db_9918', function (\Illuminate\Http\Request $request)
         'output' => \Illuminate\Support\Facades\Artisan::output(),
     ]);
 });
-
-Route::post('/_temp_reset_db_9918', function (\Illuminate\Http\Request $request) {
-    abort_unless($request->header('X-Reset-Key') === 'herbalscan-reset-2026', 403);
-    \Illuminate\Support\Facades\Artisan::call('migrate:fresh', ['--seed' => true, '--force' => true]);
-    return response()->json([
-        'status' => 'ok',
-        'output' => \Illuminate\Support\Facades\Artisan::output(),
-    ]);
-});
