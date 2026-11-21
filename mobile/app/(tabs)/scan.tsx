@@ -81,32 +81,25 @@ function ReticleLaser({ size }: { size: number }) {
 }
 
 
-let PersistentFS: any = null;
-try { PersistentFS = require("expo-file-system/legacy"); } catch { try { PersistentFS = require("expo-file-system"); } catch { PersistentFS = null; } }
-
 const saveLocalScanPhoto = async (slug: string, uri: string) => {
   if (!slug || !uri) return;
   try {
-    let savedPath = uri;
-    if (PersistentFS?.documentDirectory && !uri.startsWith("http") && !uri.startsWith("data:")) {
-      let sourceUri = uri;
-      if (ImageManipulator?.manipulateAsync) {
-        const thumb = await ImageManipulator.manipulateAsync(
-          uri,
-          [{ resize: { width: 420 } }],
-          { compress: 0.78, format: ImageManipulator.SaveFormat?.JPEG ?? "jpeg" }
-        );
-        if (thumb?.uri) sourceUri = thumb.uri;
+    let storedUri = uri;
+    if (ImageManipulator?.manipulateAsync && !uri.startsWith("http") && !uri.startsWith("data:")) {
+      const thumb = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 260 } }],
+        {
+          compress: 0.7,
+          format: ImageManipulator.SaveFormat?.JPEG ?? "jpeg",
+          base64: true,
+        }
+      );
+      if (thumb?.base64) {
+        storedUri = `data:image/jpeg;base64,${thumb.base64}`;
       }
-      const safeSlug = slug.replace(/[^a-z0-9_-]/gi, "_");
-      const destUri = `${PersistentFS.documentDirectory}herbal_scan_${safeSlug}.jpg`;
-      await PersistentFS.copyAsync({ from: sourceUri, to: destUri });
-      savedPath = destUri;
     }
-    const raw = await AsyncStorage.getItem("herbal_local_scan_photos");
-    const map = raw ? JSON.parse(raw) : {};
-    map[slug] = savedPath;
-    await AsyncStorage.setItem("herbal_local_scan_photos", JSON.stringify(map));
+    await AsyncStorage.setItem(`herbal_scan_thumb_${slug}`, storedUri);
   } catch {}
 };
 

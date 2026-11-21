@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -110,6 +111,8 @@ function getHerbalKeywordBadge(item: any): { label: string; toxic: boolean } {
   return { label: 'Herbal Alami', toxic: false };
 }
 
+const HOME_CATALOG_CACHE_KEY = "herbal_home_catalog_cache_v1";
+
 export default function HomeScreen() {
   const router = useRouter();
   const [allHerbals, setAllHerbals] = useState<HerbalItem[]>([]);
@@ -117,6 +120,24 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem(HOME_CATALOG_CACHE_KEY)
+      .then((raw) => {
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setAllHerbals((prev) => (prev.length > 0 ? prev : parsed));
+          setLoading(false);
+          parsed.slice(0, 16).forEach((it: any) => {
+            if (it?.image_url && typeof it.image_url === "string" && it.image_url.startsWith("http")) {
+              Image.prefetch(it.image_url).catch(() => {});
+            }
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchHerbals = useCallback(async () => {
     setFetchError(null);
@@ -179,6 +200,12 @@ export default function HomeScreen() {
       }
 
       setAllHerbals(parsedList);
+      AsyncStorage.setItem(HOME_CATALOG_CACHE_KEY, JSON.stringify(parsedList)).catch(() => {});
+      parsedList.slice(0, 16).forEach((it: any) => {
+        if (it?.image_url && typeof it.image_url === "string" && it.image_url.startsWith("http")) {
+          Image.prefetch(it.image_url).catch(() => {});
+        }
+      });
     } catch (err: any) {
       setFetchError(
         err?.response?.data?.message ||

@@ -281,46 +281,25 @@ export const updateProfileApi = async (payload: { name: string; phone?: string }
 };
 
 export const uploadAvatarApi = async (imageUri: string) => {
-  let finalUri = imageUri;
-  try {
-    const Manipulator = require('expo-image-manipulator');
-    if (Manipulator?.manipulateAsync) {
-      const resized = await Manipulator.manipulateAsync(
-        imageUri,
-        [{ resize: { width: 512 } }],
-        { compress: 0.82, format: Manipulator.SaveFormat?.JPEG ?? 'jpeg' }
-      );
-      if (resized?.uri) {
-        finalUri = resized.uri;
-      }
+  const Manipulator = require('expo-image-manipulator');
+  const resized = await Manipulator.manipulateAsync(
+    imageUri,
+    [{ resize: { width: 480 } }],
+    {
+      compress: 0.78,
+      format: Manipulator.SaveFormat?.JPEG ?? 'jpeg',
+      base64: true,
     }
-  } catch {}
+  );
 
-  const formData = new FormData();
-  formData.append('avatar', {
-    uri: finalUri,
-    name: 'avatar.jpg',
-    type: 'image/jpeg',
-  } as any);
-
-  const baseUrl = String(apiClient.defaults.baseURL || '').replace(/\/+$/, '');
-  const response = await fetch(`${baseUrl}/auth/profile/avatar`, {
-    method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      ...(currentAuthToken ? { Authorization: `Bearer ${currentAuthToken}` } : {}),
-    },
-    body: formData,
-  });
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const err: any = new Error(data?.message || 'Gagal mengunggah foto profil.');
-    err.response = { status: response.status, data };
-    throw err;
+  if (!resized?.base64) {
+    throw new Error('Gagal memproses foto profil yang dipilih.');
   }
 
-  return data as { user: UserProfile; message: string };
+  const res = await apiClient.post('/auth/profile/avatar', {
+    avatar_base64: `data:image/jpeg;base64,${resized.base64}`,
+  });
+  return res.data as { user: UserProfile; message: string };
 };
 
 export const updatePasswordApi = async (payload: {

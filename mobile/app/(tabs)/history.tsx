@@ -87,8 +87,15 @@ export default function HistoryScreen() {
       const list = await getScanHistories();
       let localMap: Record<string, string> = {};
       try {
-        const rawMap = await AsyncStorage.getItem("herbal_local_scan_photos");
-        if (rawMap) localMap = JSON.parse(rawMap);
+        const slugs = Array.from(
+          new Set((Array.isArray(list) ? list : []).map((r: any) => r?.detected_slug).filter(Boolean))
+        );
+        if (slugs.length > 0) {
+          const pairs = await AsyncStorage.multiGet(slugs.map((s) => `herbal_scan_thumb_${s}`));
+          for (const [k, v] of pairs) {
+            if (v) localMap[k.replace("herbal_scan_thumb_", "")] = v;
+          }
+        }
       } catch {}
       const normalized: HistoryEntry[] = (Array.isArray(list) ? list : []).map(
         (raw: any, index: number) => {
