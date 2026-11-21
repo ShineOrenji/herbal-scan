@@ -371,31 +371,56 @@ class AuthController extends Controller
     public function updateAvatar(Request $request): JsonResponse
     {
         $request->validate([
-            'avatar' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'avatar' => ['required', 'file', 'max:5120'],
+        ], [
+            'avatar.required' => 'Pilih file foto profil terlebih dahulu.',
+            'avatar.max' => 'Ukuran foto profil maksimal 5 MB.',
         ]);
 
-        $user = $request->user();
-        $oldPath = $user->avatar_path;
+        $uploadedFile = $request->file('avatar');
+        $realPath = $uploadedFile?->getRealPath();
 
-        $newPath = app(\App\Services\CloudinaryService::class)->upload($request->file('avatar')->getRealPath(), 'herbal-scan/avatars');
-        $user->avatar_path = $newPath;
-        $user->save();
-
-        if (!empty($oldPath) && $oldPath !== $newPath) {
-            if (str_starts_with($oldPath, 'http')) {
-                app(\App\Services\CloudinaryService::class)->deleteByUrl($oldPath);
-            } else {
-                Storage::disk('public')->delete($oldPath);
-            }
+        if (!$realPath || @getimagesize($realPath) === false) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'File yang dipilih bukan gambar yang valid (JPG/PNG/WEBP).',
+            ], 422);
         }
 
-        $hostUrl = rtrim($request->getSchemeAndHttpHost(), '/');
+        try {
+            $user = $request->user();
+            $oldPath = $user->avatar_path;
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Foto profil berhasil diperbarui.',
-            'user' => $this->formatUser($user, $hostUrl),
-        ]);
+            $newPath = app(\App\Services\CloudinaryService::class)->upload($realPath, 'herbal-scan/avatars');
+            $user->avatar_path = $newPath;
+            $user->save();
+
+            if (!empty($oldPath) && $oldPath !== $newPath) {
+                try {
+                    if (str_starts_with($oldPath, 'http')) {
+                        app(\App\Services\CloudinaryService::class)->deleteByUrl($oldPath);
+                    } else {
+                        Storage::disk('public')->delete($oldPath);
+                    }
+                } catch (\Throwable) {
+                    // Abaikan kegagalan hapus file lama pada filesystem read-only
+                }
+            }
+
+            $hostUrl = rtrim($request->getSchemeAndHttpHost(), '/');
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Foto profil berhasil diperbarui.',
+                'user' => $this->formatUser($user, $hostUrl),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Gagal memperbarui foto profil: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal mengunggah foto profil: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function updatePassword(Request $request): JsonResponse
