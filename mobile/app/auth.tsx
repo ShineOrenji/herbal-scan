@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -79,6 +80,21 @@ export default function AuthScreen() {
 
   const [submitting, setSubmitting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const authScrollRef = useRef<ScrollView>(null);
+  const [authKeyboardHeight, setAuthKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const s1 = Keyboard.addListener("keyboardDidShow", (e) => {
+      setAuthKeyboardHeight(e.endCoordinates?.height || 290);
+    });
+    const s2 = Keyboard.addListener("keyboardDidHide", () => {
+      setAuthKeyboardHeight(0);
+    });
+    return () => {
+      s1.remove();
+      s2.remove();
+    };
+  }, []);
   useEffect(() => {
     getPendingOtpEmail().then((savedEmail) => {
       if (savedEmail) {
@@ -291,9 +307,13 @@ export default function AuthScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
+          ref={authScrollRef}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            authKeyboardHeight > 0 && { paddingBottom: authKeyboardHeight + 56 },
+          ]}
         >
           {/* Tombol Tutup */}
           <View style={styles.topRow}>
@@ -435,6 +455,7 @@ export default function AuthScreen() {
                 <Ionicons name="lock-closed-outline" size={18} color={C.leafSoft} />
                 <TextInput
                   value={loginPassword}
+                  onFocus={() => setTimeout(() => authScrollRef.current?.scrollTo({ y: 220, animated: true }), 160)}
                   onChangeText={setLoginPassword}
                   placeholder="Minimal 8 karakter"
                   placeholderTextColor={C.textFaint}
@@ -531,6 +552,7 @@ export default function AuthScreen() {
                 <Ionicons name="call-outline" size={18} color={C.leafSoft} />
                 <TextInput
                   value={regPhone}
+                  onFocus={() => setTimeout(() => authScrollRef.current?.scrollTo({ y: 240, animated: true }), 160)}
                   onChangeText={setRegPhone}
                   placeholder="0812xxxxxxxx"
                   placeholderTextColor={C.textFaint}
@@ -544,6 +566,7 @@ export default function AuthScreen() {
                 <Ionicons name="lock-closed-outline" size={18} color={C.leafSoft} />
                 <TextInput
                   value={regPassword}
+                  onFocus={() => setTimeout(() => authScrollRef.current?.scrollTo({ y: 310, animated: true }), 160)}
                   onChangeText={setRegPassword}
                   placeholder="Minimal 8 karakter"
                   placeholderTextColor={C.textFaint}

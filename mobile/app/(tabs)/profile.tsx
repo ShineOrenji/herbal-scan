@@ -217,7 +217,7 @@ export default function ProfileScreen() {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={[
             styles.scrollContent,
-            keyboardHeight > 0 && { paddingBottom: 140 },
+            keyboardHeight > 0 && { paddingBottom: keyboardHeight + 56 },
           ]}
         >
           <View style={styles.headerBlock}>

@@ -36,6 +36,7 @@ interface HistoryEntry {
   detected_slug: string;
   confidence_score: number;
   image_url: string | null;
+  fallback_url?: string | null;
   created_at: string;
   plant_name: string;
   scientific_name: string;
@@ -97,6 +98,7 @@ export default function HistoryScreen() {
             detected_slug: raw?.detected_slug || '',
             confidence_score: Number(raw?.confidence_score ?? 0),
             image_url: localMap[raw?.detected_slug] || raw?.scan_image_url || raw?.image_url || null,
+            fallback_url: raw?.catalog_image_url || raw?.image_url || null,
             created_at: raw?.created_at || '',
             plant_name: plantName,
             scientific_name: raw?.scientific_name || '',
@@ -266,7 +268,7 @@ export default function HistoryScreen() {
                     onError={() => {
                       setItems((prev) =>
                         prev.map((entry) =>
-                          entry.id === item.id ? { ...entry, image_url: null } : entry
+                          entry.id === item.id ? { ...entry, image_url: entry.fallback_url && entry.fallback_url !== entry.image_url ? entry.fallback_url : null } : entry
                         )
                       );
                     }}
