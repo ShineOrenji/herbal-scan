@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from 'axios';
 import { HerbalDetail, ScanHistoryItem } from '../types/herbal';
 
@@ -85,7 +86,40 @@ const CATALOG_CACHE_FILE = FileSystem?.documentDirectory
   : null;
 
 let memoryCatalogCache: HerbalDetail[] = [];
+const DETAIL_DISK_CACHE_KEY = "herbal_detail_disk_cache_v1";
 const memoryDetailCache: Record<string, HerbalDetail> = {};
+let detailDiskHydrated = false;
+
+const hydrateDetailDiskCache = async (): Promise<void> => {
+  if (detailDiskHydrated) return;
+  detailDiskHydrated = true;
+  try {
+    const raw = await AsyncStorage.getItem(DETAIL_DISK_CACHE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        Object.assign(memoryDetailCache, parsed);
+      }
+    }
+  } catch {}
+};
+
+const persistDetailDiskCache = async (): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(DETAIL_DISK_CACHE_KEY, JSON.stringify(memoryDetailCache));
+  } catch {}
+};
+
+hydrateDetailDiskCache();
+
+export const getPersistedHerbalBySlug = async (slug: string): Promise<HerbalDetail | null> => {
+  if (!slug) return null;
+  if (memoryDetailCache[slug]) return memoryDetailCache[slug];
+  await hydrateDetailDiskCache();
+  if (memoryDetailCache[slug]) return memoryDetailCache[slug];
+  const cat = await readCatalogFromLocalCache();
+  return cat.find((item) => item.slug === slug) || null;
+};
 
 const saveCatalogToLocalCache = async (plants: HerbalDetail[]): Promise<void> => {
   memoryCatalogCache = plants;
@@ -94,6 +128,7 @@ const saveCatalogToLocalCache = async (plants: HerbalDetail[]): Promise<void> =>
       memoryDetailCache[p.slug] = { ...memoryDetailCache[p.slug], ...p };
     }
   }
+  persistDetailDiskCache();
   if (!CATALOG_CACHE_FILE || !FileSystem?.writeAsStringAsync) return;
   try {
     await FileSystem.writeAsStringAsync(CATALOG_CACHE_FILE, JSON.stringify(plants));
@@ -179,6 +214,7 @@ export const getHerbalBySlug = async (slug: string): Promise<HerbalDetail> => {
     const detail: HerbalDetail = response.data.data;
     if (detail?.slug) {
       memoryDetailCache[detail.slug] = detail;
+      persistDetailDiskCache();
     }
     return detail;
   } catch (err) {
@@ -245,23 +281,46 @@ export const updateProfileApi = async (payload: { name: string; phone?: string }
 };
 
 export const uploadAvatarApi = async (imageUri: string) => {
-  const formData = new FormData();
-  const filename = imageUri.split('/').pop() || 'avatar.jpg';
-  const ext = filename.split('.').pop()?.toLowerCase();
-  const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
+  let finalUri = imageUri;
+  try {
+    const Manipulator = require('expo-image-manipulator');
+    if (Manipulator?.manipulateAsync) {
+      const resized = await Manipulator.manipulateAsync(
+        imageUri,
+        [{ resize: { width: 512 } }],
+        { compress: 0.82, format: Manipulator.SaveFormat?.JPEG ?? 'jpeg' }
+      );
+      if (resized?.uri) {
+        finalUri = resized.uri;
+      }
+    }
+  } catch {}
 
+  const formData = new FormData();
   formData.append('avatar', {
-    uri: imageUri,
-    name: filename,
-    type: mime,
+    uri: finalUri,
+    name: 'avatar.jpg',
+    type: 'image/jpeg',
   } as any);
 
-  const res = await apiClient.post('/auth/profile/avatar', formData, {
+  const baseUrl = String(apiClient.defaults.baseURL || '').replace(/\/+$/, '');
+  const response = await fetch(`${baseUrl}/auth/profile/avatar`, {
+    method: 'POST',
     headers: {
-      'Content-Type': 'multipart/form-data',
+      Accept: 'application/json',
+      ...(currentAuthToken ? { Authorization: `Bearer ${currentAuthToken}` } : {}),
     },
+    body: formData,
   });
-  return res.data as { user: UserProfile; message: string };
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const err: any = new Error(data?.message || 'Gagal mengunggah foto profil.');
+    err.response = { status: response.status, data };
+    throw err;
+  }
+
+  return data as { user: UserProfile; message: string };
 };
 
 export const updatePasswordApi = async (payload: {

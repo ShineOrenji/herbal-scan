@@ -58,6 +58,7 @@ export default function ProfileScreen() {
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [profileCardY, setProfileCardY] = useState(0);
   const [passwordCardY, setPasswordCardY] = useState(0);
 
   useEffect(() => {
@@ -343,6 +344,7 @@ export default function ProfileScreen() {
               </GlassView>
 
               {/* Kartu Edit Nama & Nomor HP */}
+              <View onLayout={(e) => setProfileCardY(e.nativeEvent.layout.y)}>
               <GlassView
                 radius={30}
                 intensity={48}
@@ -361,6 +363,7 @@ export default function ProfileScreen() {
                   <Ionicons name="person-outline" size={18} color={C.leafSoft} />
                   <TextInput
                     value={name}
+                    onFocus={() => setTimeout(() => scrollViewRef.current?.scrollTo({ y: Math.max(0, profileCardY - 24), animated: true }), 160)}
                     onChangeText={setName}
                     placeholder="Nama lengkap Anda"
                     placeholderTextColor={C.textFaint}
@@ -373,6 +376,7 @@ export default function ProfileScreen() {
                   <Ionicons name="call-outline" size={18} color={C.leafSoft} />
                   <TextInput
                     value={phone}
+                    onFocus={() => setTimeout(() => scrollViewRef.current?.scrollTo({ y: Math.max(0, profileCardY - 24), animated: true }), 160)}
                     onChangeText={setPhone}
                     placeholder="0812xxxxxxxx"
                     placeholderTextColor={C.textFaint}
@@ -397,6 +401,8 @@ export default function ProfileScreen() {
                   )}
                 </TouchableOpacity>
               </GlassView>
+
+              </View>
 
               {/* Kartu Ganti Kata Sandi */}
               <View onLayout={(e) => setPasswordCardY(e.nativeEvent.layout.y)}>

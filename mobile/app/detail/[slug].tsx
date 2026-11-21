@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { getCachedHerbalBySlug, getHerbalBySlug } from '../../services/api';
+import { getCachedHerbalBySlug, getHerbalBySlug, getPersistedHerbalBySlug } from '../../services/api';
 import { HerbalDetail } from '../../types/herbal';
 import BotanicalBackdrop from '../../components/BotanicalBackdrop';
 import GlassView from '../../components/GlassView';
@@ -58,6 +58,11 @@ export default function HerbalDetailScreen() {
   const loadDetail = useCallback(async () => {
     if (!slug) return;
     setErrorMsg(null);
+    const diskCached = await getPersistedHerbalBySlug(slug);
+    if (diskCached) {
+      setHerbal((prev) => prev || diskCached);
+      setLoading(false);
+    }
     try {
       const res: any = await getHerbalBySlug(slug);
       const unwrapped = res?.data?.data ?? res?.data ?? res;
