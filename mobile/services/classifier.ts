@@ -107,7 +107,7 @@ export async function classifyImage(rawImageUri: string): Promise<Classification
     const manipulated = await ImageManipulator.manipulateAsync(
       rawImageUri,
       [{ resize: { width: 1024 } }],
-      { compress: 0.72, format: ImageManipulator.SaveFormat.JPEG }
+      { compress: 0.88, format: ImageManipulator.SaveFormat.JPEG }
     );
     if (manipulated?.uri) {
       imageUri = manipulated.uri;

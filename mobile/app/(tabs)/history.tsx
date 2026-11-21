@@ -96,7 +96,7 @@ export default function HistoryScreen() {
             id: Number(raw?.id ?? index + 1),
             detected_slug: raw?.detected_slug || '',
             confidence_score: Number(raw?.confidence_score ?? 0),
-            image_url: raw?.scan_image_url || localMap[raw?.detected_slug] || raw?.image_url || null,
+            image_url: localMap[raw?.detected_slug] || raw?.scan_image_url || raw?.image_url || null,
             created_at: raw?.created_at || '',
             plant_name: plantName,
             scientific_name: raw?.scientific_name || '',
@@ -263,6 +263,13 @@ export default function HistoryScreen() {
                 {item.image_url ? (
                   <Image
                     source={{ uri: item.image_url }}
+                    onError={() => {
+                      setItems((prev) =>
+                        prev.map((entry) =>
+                          entry.id === item.id ? { ...entry, image_url: null } : entry
+                        )
+                      );
+                    }}
                     style={styles.thumbImg}
                     resizeMode="cover"
                   />
