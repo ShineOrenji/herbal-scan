@@ -82,6 +82,8 @@ export default function AuthScreen() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const authScrollRef = useRef<ScrollView>(null);
   const [authKeyboardHeight, setAuthKeyboardHeight] = useState(0);
+  const [loginPwFocused, setLoginPwFocused] = useState(false);
+  const [regPwFocused, setRegPwFocused] = useState(false);
 
   useEffect(() => {
     const s1 = Keyboard.addListener("keyboardDidShow", (e) => {
@@ -312,7 +314,7 @@ export default function AuthScreen() {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={[
             styles.scrollContent,
-            authKeyboardHeight > 0 && { paddingBottom: 28 },
+            authKeyboardHeight > 0 && { paddingBottom: authKeyboardHeight + 28 },
           ]}
         >
           {/* Tombol Tutup */}
@@ -455,7 +457,11 @@ export default function AuthScreen() {
                 <Ionicons name="lock-closed-outline" size={18} color={C.leafSoft} />
                 <TextInput
                   value={loginPassword}
-                  onFocus={() => setTimeout(() => authScrollRef.current?.scrollTo({ y: 140, animated: true }), 160)}
+                  onFocus={() => {
+                    setLoginPwFocused(true);
+                    setTimeout(() => authScrollRef.current?.scrollTo({ y: 150, animated: true }), 140);
+                  }}
+                  onBlur={() => setLoginPwFocused(false)}
                   onChangeText={setLoginPassword}
                   placeholder="Minimal 8 karakter"
                   placeholderTextColor={C.textFaint}
@@ -566,7 +572,11 @@ export default function AuthScreen() {
                 <Ionicons name="lock-closed-outline" size={18} color={C.leafSoft} />
                 <TextInput
                   value={regPassword}
-                  onFocus={() => setTimeout(() => authScrollRef.current?.scrollTo({ y: 220, animated: true }), 160)}
+                  onFocus={() => {
+                    setRegPwFocused(true);
+                    setTimeout(() => authScrollRef.current?.scrollTo({ y: 230, animated: true }), 140);
+                  }}
+                  onBlur={() => setRegPwFocused(false)}
                   onChangeText={setRegPassword}
                   placeholder="Minimal 8 karakter"
                   placeholderTextColor={C.textFaint}

@@ -62,6 +62,8 @@ export default function ProfileScreen() {
   const profileCardYRef = useRef(0);
   profileCardYRef.current = profileCardY;
   const [passwordCardY, setPasswordCardY] = useState(0);
+  const passwordCardYRef = useRef(0);
+  passwordCardYRef.current = passwordCardY;
   const activeInputSection = useRef<"profile" | "password" | null>(null);
 
   useEffect(() => {
@@ -69,7 +71,7 @@ export default function ProfileScreen() {
       setKeyboardHeight(e.endCoordinates?.height || 280);
       setTimeout(() => {
         if (activeInputSection.current === "password") {
-          scrollViewRef.current?.scrollToEnd({ animated: true });
+          scrollViewRef.current?.scrollTo({ y: Math.max(0, passwordCardYRef.current - 16), animated: true });
         } else if (activeInputSection.current === "profile") {
           scrollViewRef.current?.scrollTo({ y: Math.max(0, profileCardYRef.current - 16), animated: true });
         }
@@ -229,7 +231,7 @@ export default function ProfileScreen() {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={[
             styles.scrollContent,
-            keyboardHeight > 0 && { paddingBottom: 28 },
+            keyboardHeight > 0 && { paddingBottom: Math.max(24, keyboardHeight - 96) },
           ]}
         >
           <View style={styles.headerBlock}>
@@ -438,8 +440,9 @@ export default function ProfileScreen() {
                     <View style={styles.inputBox}>
                       <Ionicons name="lock-closed-outline" size={18} color={C.leafSoft} />
                       <TextInput
+                        key={showCurrentPw ? 'cur-pw-open' : 'cur-pw-masked'}
                         value={currentPassword}
-                        onFocus={() => { activeInputSection.current = "password"; setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 180); }}
+                        onFocus={() => { activeInputSection.current = "password"; setTimeout(() => scrollViewRef.current?.scrollTo({ y: Math.max(0, passwordCardYRef.current - 16), animated: true }), 180); }}
                         onChangeText={setCurrentPassword}
                         placeholder="Masukkan kata sandi lama"
                         placeholderTextColor={C.textFaint}
@@ -462,8 +465,9 @@ export default function ProfileScreen() {
                 <View style={styles.inputBox}>
                   <Ionicons name="lock-open-outline" size={18} color={C.leafSoft} />
                   <TextInput
-                    value={newPassword}
-                        onFocus={() => { activeInputSection.current = "password"; setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 180); }}
+                    key={showNewPw ? 'new-pw-open' : 'new-pw-masked'}
+                        value={newPassword}
+                        onFocus={() => { activeInputSection.current = "password"; setTimeout(() => scrollViewRef.current?.scrollTo({ y: Math.max(0, passwordCardYRef.current - 16), animated: true }), 180); }}
                     onChangeText={setNewPassword}
                     placeholder="Minimal 8 karakter"
                     placeholderTextColor={C.textFaint}
@@ -484,8 +488,9 @@ export default function ProfileScreen() {
                 <View style={styles.inputBox}>
                   <Ionicons name="checkmark-circle-outline" size={18} color={C.leafSoft} />
                   <TextInput
-                    value={confirmPassword}
-                        onFocus={() => { activeInputSection.current = "password"; setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 180); }}
+                    key={showNewPw ? 'conf-pw-open' : 'conf-pw-masked'}
+                        value={confirmPassword}
+                        onFocus={() => { activeInputSection.current = "password"; setTimeout(() => scrollViewRef.current?.scrollTo({ y: Math.max(0, passwordCardYRef.current - 16), animated: true }), 180); }}
                     onChangeText={setConfirmPassword}
                     placeholder="Ulangi kata sandi baru"
                     placeholderTextColor={C.textFaint}
