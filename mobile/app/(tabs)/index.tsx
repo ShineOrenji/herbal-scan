@@ -111,6 +111,16 @@ function getHerbalKeywordBadge(item: any): { label: string; toxic: boolean } {
   return { label: 'Herbal Alami', toxic: false };
 }
 
+function dedupeHerbals(list: HerbalItem[]): HerbalItem[] {
+  const seen = new Set<string>();
+  return list.filter((item: any) => {
+    const key = String(item?.slug || item?.name || "").toLowerCase().trim();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 const HOME_CATALOG_CACHE_KEY = "herbal_home_catalog_cache_v1";
 
 export default function HomeScreen() {
@@ -127,7 +137,7 @@ export default function HomeScreen() {
         if (!raw) return;
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setAllHerbals((prev) => (prev.length > 0 ? prev : parsed));
+          setAllHerbals((prev) => (prev.length > 0 ? prev : dedupeHerbals(parsed)));
           setLoading(false);
           parsed.slice(0, 16).forEach((it: any) => {
             if (it?.image_url && typeof it.image_url === "string" && it.image_url.startsWith("http")) {
@@ -199,8 +209,9 @@ export default function HomeScreen() {
         throw lastErr;
       }
 
-      setAllHerbals(parsedList);
-      AsyncStorage.setItem(HOME_CATALOG_CACHE_KEY, JSON.stringify(parsedList)).catch(() => {});
+      const cleanList = dedupeHerbals(parsedList);
+      setAllHerbals(cleanList);
+      AsyncStorage.setItem(HOME_CATALOG_CACHE_KEY, JSON.stringify(cleanList)).catch(() => {});
       parsedList.slice(0, 16).forEach((it: any) => {
         if (it?.image_url && typeof it.image_url === "string" && it.image_url.startsWith("http")) {
           Image.prefetch(it.image_url).catch(() => {});
