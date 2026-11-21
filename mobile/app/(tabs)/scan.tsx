@@ -494,7 +494,7 @@ export default function ScanScreen() {
       }
 
       const single = data.plants[0];
-      const resolvedPhoto = single.scan_image_url || data.scan_image_url || photoUri;
+      const resolvedPhoto = photoUri || single.scan_image_url || data.scan_image_url;
       await saveLocalScanPhoto(single.slug, photoUri);
 
       router.push({
@@ -517,7 +517,7 @@ export default function ScanScreen() {
   };
 
   const openDetectedPlantDetail = (plant: DetectedPlantItem) => {
-    const resolvedPhoto = plant.scan_image_url || detectedFrameUrl || photoUri || '';
+    const resolvedPhoto = photoUri || plant.scan_image_url || detectedFrameUrl || '';
     if (photoUri) { saveLocalScanPhoto(plant.slug, photoUri); }
     router.push({
       pathname: '/detail/[slug]',

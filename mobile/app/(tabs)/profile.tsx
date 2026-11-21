@@ -59,14 +59,25 @@ export default function ProfileScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [profileCardY, setProfileCardY] = useState(0);
+  const profileCardYRef = useRef(0);
+  profileCardYRef.current = profileCardY;
   const [passwordCardY, setPasswordCardY] = useState(0);
+  const activeInputSection = useRef<"profile" | "password" | null>(null);
 
   useEffect(() => {
     const showSub = Keyboard.addListener("keyboardDidShow", (e) => {
       setKeyboardHeight(e.endCoordinates?.height || 280);
+      setTimeout(() => {
+        if (activeInputSection.current === "password") {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        } else if (activeInputSection.current === "profile") {
+          scrollViewRef.current?.scrollTo({ y: Math.max(0, profileCardYRef.current - 16), animated: true });
+        }
+      }, 90);
     });
     const hideSub = Keyboard.addListener("keyboardDidHide", () => {
       setKeyboardHeight(0);
+      activeInputSection.current = null;
     });
     return () => {
       showSub.remove();
@@ -363,7 +374,7 @@ export default function ProfileScreen() {
                   <Ionicons name="person-outline" size={18} color={C.leafSoft} />
                   <TextInput
                     value={name}
-                    onFocus={() => setTimeout(() => scrollViewRef.current?.scrollTo({ y: Math.max(0, profileCardY - 12), animated: true }), 140)}
+                    onFocus={() => { activeInputSection.current = "profile"; setTimeout(() => scrollViewRef.current?.scrollTo({ y: Math.max(0, profileCardYRef.current - 16), animated: true }), 180); }}
                     onChangeText={setName}
                     placeholder="Nama lengkap Anda"
                     placeholderTextColor={C.textFaint}
@@ -376,7 +387,7 @@ export default function ProfileScreen() {
                   <Ionicons name="call-outline" size={18} color={C.leafSoft} />
                   <TextInput
                     value={phone}
-                    onFocus={() => setTimeout(() => scrollViewRef.current?.scrollTo({ y: Math.max(0, profileCardY - 12), animated: true }), 140)}
+                    onFocus={() => { activeInputSection.current = "profile"; setTimeout(() => scrollViewRef.current?.scrollTo({ y: Math.max(0, profileCardYRef.current - 16), animated: true }), 180); }}
                     onChangeText={setPhone}
                     placeholder="0812xxxxxxxx"
                     placeholderTextColor={C.textFaint}
@@ -428,7 +439,7 @@ export default function ProfileScreen() {
                       <Ionicons name="lock-closed-outline" size={18} color={C.leafSoft} />
                       <TextInput
                         value={currentPassword}
-                        onFocus={() => setTimeout(() => scrollViewRef.current?.scrollTo({ y: Math.max(0, passwordCardY - 12), animated: true }), 140)}
+                        onFocus={() => { activeInputSection.current = "password"; setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 180); }}
                         onChangeText={setCurrentPassword}
                         placeholder="Masukkan kata sandi lama"
                         placeholderTextColor={C.textFaint}
@@ -452,7 +463,7 @@ export default function ProfileScreen() {
                   <Ionicons name="lock-open-outline" size={18} color={C.leafSoft} />
                   <TextInput
                     value={newPassword}
-                        onFocus={() => setTimeout(() => scrollViewRef.current?.scrollTo({ y: Math.max(0, passwordCardY - 12), animated: true }), 140)}
+                        onFocus={() => { activeInputSection.current = "password"; setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 180); }}
                     onChangeText={setNewPassword}
                     placeholder="Minimal 8 karakter"
                     placeholderTextColor={C.textFaint}
@@ -474,7 +485,7 @@ export default function ProfileScreen() {
                   <Ionicons name="checkmark-circle-outline" size={18} color={C.leafSoft} />
                   <TextInput
                     value={confirmPassword}
-                        onFocus={() => setTimeout(() => scrollViewRef.current?.scrollTo({ y: Math.max(0, passwordCardY - 12), animated: true }), 140)}
+                        onFocus={() => { activeInputSection.current = "password"; setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 180); }}
                     onChangeText={setConfirmPassword}
                     placeholder="Ulangi kata sandi baru"
                     placeholderTextColor={C.textFaint}
