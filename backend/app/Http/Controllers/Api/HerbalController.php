@@ -258,11 +258,9 @@ class HerbalController extends Controller
                     ? (str_starts_with($history->image_path, 'http') ? $history->image_path : $hostUrl . '/storage/' . ltrim($history->image_path, '/'))
                     : null;
 
-                return [
-                    'id' => $history->id,
-                    'detected_slug' => $history->detected_slug,
-                    'confidence_score' => round((float) $history->confidence_score),
-                    $validScanUrl = ($fullPhotoUrl && !str_contains($fullPhotoUrl, '/storage/')) ? $fullPhotoUrl : null;
+                $validScanUrl = ($fullPhotoUrl && !str_contains($fullPhotoUrl, '/storage/')) ? $fullPhotoUrl : null;
+                $plantName = $history->herbal?->name ?: Str::headline((string) $history->detected_slug);
+
                 return [
                     'id' => $history->id,
                     'detected_slug' => $history->detected_slug,
@@ -270,10 +268,10 @@ class HerbalController extends Controller
                     'image_url' => $validScanUrl ?: $history->herbal?->image_url,
                     'scan_image_url' => $validScanUrl,
                     'catalog_image_url' => $history->herbal?->image_url,
-                    'created_at' => $history->created_at?->toIso8601String(),
-                    'plant_name' => $history->herbal?->name ?? Str::headline($history->detected_slug),
+                    'created_at' => $history->created_at?->toISOString(),
+                    'plant_name' => $plantName,
                     'scientific_name' => $history->herbal?->scientific_name ?? '',
-                    'is_toxic' => (bool) ($history->herbal?->is_toxic ?? false) || str_contains(strtolower((string) ($history->herbal?->name ?? '')), 'beracun'),
+                    'is_toxic' => (bool) ($history->herbal?->is_toxic ?? false) || str_contains(strtolower($plantName), 'beracun'),
                 ];
             });
 
