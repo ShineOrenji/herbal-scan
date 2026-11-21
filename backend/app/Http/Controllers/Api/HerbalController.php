@@ -133,7 +133,7 @@ class HerbalController extends Controller
 
         $fetchedFallbackRefs = [];
 
-        if ($canEnrichRemote && $herbal->references->count() < 2 && !empty($herbal->scientific_name)) {
+        if ($herbal->references->count() === 0 && !empty($herbal->scientific_name)) {
             try {
                 $references = $this->journalService->fetchReferences($herbal->scientific_name, 3);
                 if (!empty($references)) {
@@ -262,7 +262,14 @@ class HerbalController extends Controller
                     'id' => $history->id,
                     'detected_slug' => $history->detected_slug,
                     'confidence_score' => round((float) $history->confidence_score),
-                    'image_url' => $fullPhotoUrl,
+                    $validScanUrl = ($fullPhotoUrl && !str_contains($fullPhotoUrl, '/storage/')) ? $fullPhotoUrl : null;
+                return [
+                    'id' => $history->id,
+                    'detected_slug' => $history->detected_slug,
+                    'confidence_score' => round((float) $history->confidence_score),
+                    'image_url' => $validScanUrl ?: $history->herbal?->image_url,
+                    'scan_image_url' => $validScanUrl,
+                    'catalog_image_url' => $history->herbal?->image_url,
                     'created_at' => $history->created_at?->toIso8601String(),
                     'plant_name' => $history->herbal?->name ?? Str::headline($history->detected_slug),
                     'scientific_name' => $history->herbal?->scientific_name ?? '',

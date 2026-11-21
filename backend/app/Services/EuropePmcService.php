@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Log;
 
 class EuropePmcService
 {
-    private const MIN_YEAR = 2016;
+    private const MIN_YEAR = 2020;
 
     public function fetchReferences(string $scientificName, int $limit = 3): array
     {
