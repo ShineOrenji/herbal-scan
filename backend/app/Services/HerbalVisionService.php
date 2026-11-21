@@ -21,14 +21,13 @@ class HerbalVisionService
             throw new RuntimeException('GEMINI_API_KEYS atau GEMINI_API_KEY belum diisi pada environment.');
         }
 
-        // Resolusi 1024px kualitas 88 menjaga ketajaman urat daun, ketebalan sukulen, dan trikoma
         $optimized = $this->prepareOptimizedImage($imagePath);
         $base64Image = $optimized['data'];
         $mimeType = $optimized['mime_type'];
 
-        // Cache v2 agar hasil lama yang keliru tidak terpakai ulang
+        // Cache v4 untuk mereset hasil keliru sebelumnya
         $normalizedHash = hash('sha256', $base64Image);
-        $cacheKey = "herbal_vision_pool_v3_{$normalizedHash}";
+        $cacheKey = "herbal_vision_pool_v4_{$normalizedHash}";
         $cached = Cache::get($cacheKey);
         if (is_array($cached) && !empty($cached['detected_plants'])) {
             return $cached;
@@ -40,46 +39,38 @@ class HerbalVisionService
                 fn ($item) => "{$item['name']} ({$item['scientific_name']})",
                 array_slice($knownSpecies, 0, 60)
             );
-            $knownHint = "Daftar spesies referensi di database HerbalScan (gunakan nama Indonesia & ilmiah yang sama JIKA ciri morfologi fisik pada foto benar-benar cocok): " . implode(', ', $pairs) . ".\n\n";
+            $knownHint = "CATATAN PENAMAAN KATALOG: Identifikasi spesies tumbuhan yang SEBENARNYA di dunia berdasarkan botani murni terlebih dahulu (JANGAN memaksakan cocok ke daftar ini jika spesiesnya berbeda). HANYA jika spesiesnya memang sama persis, gunakan format nama Indonesia & ilmiah berikut: " . implode(', ', $pairs) . ".\n\n";
         }
 
         $prompt = <<<PROMPT
-Anda adalah ahli taksonomi botani lapangan, agronomi, dan etnofarmakologi Indonesia. Tugas Anda mengidentifikasi spesimen tumbuhan pada foto secara presisi tinggi dalam kondisi kamera apa pun (close-up satu helai daun, ranting, tanaman utuh di pot/kebun, sudut miring, pencahayaan redup/silau, atau daun basah). Kembalikan HANYA JSON valid.
+Anda adalah ahli taksonomi botani global, agronomi, dan etnofarmakologi. Tugas Anda mengidentifikasi spesies tumbuhan apa pun di dunia (tanaman herbal, tanaman buah, sayuran, tanaman hias, maupun tumbuhan liar) secara presisi tinggi dalam kondisi dan sudut kamera apa pun. Kembalikan HANYA JSON valid.
 
-{$knownHint}LANGKAH WAJIB SEBELUM MENENTUKAN NAMA SPESIES:
-Isi kolom `morphological_analysis` terlebih dahulu dengan mengamati bukti visual nyata pada foto:
-1. **Ketebalan & Tekstur Helai Daun**: Apakah tebal berdaging/berair/sukulen (*succulent*), tipis lunak (*herbaceous*), kaku seperti kertas/kulit (*coriaceous*), mengilap (*glossy*), berbulu halus/kasar (*pubescent/hispid*), atau berkerut (*rugose*)?
-2. **Pola Pertulangan Daun (Venation)**: Apakah tulang daun melengkung tegas dari pangkal ke ujung (*campylodromous*), menyirip jelas (*pinnate*), menjari (*palmate*), sejajar (*parallel*), atau tulang daun samar tenggelam dalam daging daun?
-3. **Bentuk, Tepi, Pangkal & Tangkai**: Bentuk helai (jantung/cordate, bulat telur/ovate, lanset, menjari, majemuk menyirip), tepi daun (rata/entire, bergerigi/serrate, beringgit/crenate, berlekuk), serta warna/bentuk batang, ruas, sulur, umbi udara, bunga, atau rimpang jika terlihat.
-4. **Kompensasi Sudut & Pencahayaan Kamera**: Jangan tertipu kilau cahaya matahari atau bayangan. Jika hanya tampak satu daun dari dekat atau dari samping, fokus pada rasio panjang-lebar helai, lekukan pangkal daun, pola urat, dan ketebalan tepi daun.
-
-ATURAN PEMBEDA SPESIES MIRIP DI INDONESIA (WAJIB DIPATUHI):
-- **Binahong (*Anredera cordifolia*) vs Daun Sirih Hijau (*Piper betle*) vs Sirih Cina/Ketumpang Air (*Peperomia pellucida*)**:
-  - *Binahong*: Daun berbentuk jantung (*cordate*) dengan helai **TEBAL BERDAGING (sukulen/empuk)**, permukaan licin mengilap, tulang daun melengkung **samar/tidak menonjol tajam**, tangkai daun pendek-sedang agak berdaging/kemerahan, batang merambat lunak/berdaging (sering ada umbi udara/bulbil di ketiak).
-  - *Daun Sirih Hijau*: Daun berbentuk jantung/bulat telur meruncing dengan helai **TIPIS-KAKU (tidak sukulen)**, memiliki **5–7 tulang daun utama melengkung tajam dan beralur jelas** dari pangkal hingga ujung daun, batang berkayu dengan buku/ruas membengkak.
-  - *Sirih Cina / Ketumpang Air*: Ukuran daun jauh lebih kecil (1–3 cm), sangat tipis transparan/berair, batang tegak lunak bening kehijauan, tumbuh berkelompok di tempat lembap.
-- **Daun Mint (*Mentha spicata* / *Mentha piperita*) vs Kemangi (*Ocimum × africanum*) vs Daun Jinten/Bangun-bangun (*Plectranthus amboinicus*)**:
-  - *Mint*: Permukaan berkerut tegas (*rugose*) mengikuti alur urat, tepi bergerigi tajam teratur, tangkai sangat pendek.
-  - *Kemangi*: Helai tipis rata/halus, tepi rata hingga bergelombang halus, ujung meruncing, tangkai ramping panjang.
-  - *Daun Jinten*: Helai sangat tebal berdaging, berbulu beludru rapat, tepi beringgit tumpul.
-- **Pegagan (*Centella asiatica*) vs Semanggi (*Marsilea crenata*)**:
-  - *Pegagan*: Daun tunggal berbentuk ginjal/kipas membulat dengan tepi beringgit tumpul dan tulang daun menjari dari pangkal tangkai.
-  - *Semanggi*: Daun majemuk beranak daun 4 helai menyerupai semanggi simetris.
-- **Sambiloto (*Andrographis paniculata*) vs Meniran (*Phyllanthus niruri*) vs Daun Katuk (*Sauropus androgynus*)**:
-  - *Sambiloto*: Daun tunggal berhadapan berbentuk lanset meruncing, batang segi empat, rasa sangat pahit.
-  - *Meniran*: Daun majemuk menyirip kecil-kecil oval berderet rapi dengan deretan buah/bunga bulat kecil menggantung di bawah tangkai daun.
-  - *Katuk*: Daun majemuk berseling, helai bulat telur dengan bercak keperakan samar di tengah daun, tangkai kemerahan.
-- **Rimpang & Tanaman Temu-temuan**:
-  - Bedakan *Kunyit* (*Curcuma longa*, daging jingga pekat), *Temulawak* (*Curcuma zanthorrhiza*, rimpang besar kuning pucat-jingga lembut), *Jahe* (*Zingiber officinale*, rimpang bercabang krem-kuning berserat), *Lengkuas* (*Alpinia galanga*, rimpang putih-kemerahan berserat keras beruas jelas), dan *Kencur* (*Kaempferia galanga*, rimpang kecil aromatik dengan 2–4 helai daun bulat lebar tumbuh mendatar di atas tanah).
-- **Herbal Populer & Liar Nusantara Lainnya**:
-  - Kenali secara akurat *Daun Kelor* (*Moringa oleifera*), *Daun Salam* (*Syzygium polyanthum*), *Kumis Kucing* (*Orthosiphon aristatus*), *Keji Beling* (*Strobilanthes crispus*), *Tempuyung* (*Sonchus arvensis*), *Alang-alang* (*Imperata cylindrica*), *Kirinyuh* (*Chromolaena odorata*), *Bandotan* (*Ageratum conyzoides*), *Patikan Kebo* (*Euphorbia hirta*), *Ciplukan* (*Physalis angulata*), *Sembung* (*Blumea balsamifera*), *Pecut Kuda* (*Stachytarpheta jamaicensis*), *Brotowali* (*Tinospora crispa*), *Lidah Buaya* (*Aloe vera*), dan *Mahkota Dewa* (*Phaleria macrocarpa*).
-- **Tanaman Beracun (WAJIB `is_toxic`: true & akhiran `" (Beracun)"` pada `common_name_id`)**:
-  - Meskipun suatu tanaman memiliki pemanfaatan tradisional, JIKA tanaman tersebut mengandung senyawa toksik berbahaya bagi manusia/hewan (seperti *Pokeweed* / *Phytolacca americana*, *Saga Rambat* / *Abrus precatorius*, *Kecubung* / *Datura metel*, *Bunga Terompet* / *Brugmansia*, *Jarak Pagar* / *Jatropha curcas*, *Jarak Kepyar* / *Ricinus communis*, *Bintaro* / *Cerbera manghas*, *Gadung* / *Dioscorea hispida*, *Patah Tulang* / *Euphorbia tirucalli*, *Tapak Dara* / *Catharanthus roseus*, *Tembelekan* / *Lantana camara*, *Dieffenbachia*, dan *Oleander* / *Nerium oleander*), Anda WAJIB menetapkan `"is_toxic": true` dan menambahkan `" (Beracun)"` pada `common_name_id`.
-
-ATURAN VALIDASI KUALITAS FOTO & ANTI-HALUSINASI (WAJIB):
-- **Tolak Foto Tidak Fokus / Asal Jepret**: Jika foto buram/goyang (*blur*), kamera terlalu jauh sehingga daun tampak kecil di antara semak/tanah, pencahayaan terlalu gelap/silau, atau kamera tidak mengarah jelas ke bagian tumbuhan tertentu, JANGAN MENEBAK SPESIES. Wajib isi `"is_confident_species": false`, `"confidence": 35`, dan tulis panduan spesifik di `"rejection_reason"` dalam Bahasa Indonesia (contoh: *"Foto terlihat buram atau kamera terlalu jauh dari daun. Dekatkan kamera 15–30 cm ke satu helai daun utama hingga urat daun terlihat jelas, lalu pindai ulang."*).
-- **Toleransi Sudut Terkendali**: Jika foto tajam dan fokus pada spesimen (meski sudut miring atau close-up macro), identifikasi spesies yang paling akurat (`is_plant`: true, `is_confident_species`: true).
-- **Bukan Tumbuhan / Makanan Matang**: Jika objek bukan tumbuhan atau berupa masakan/olahan matang, wajib isi `"is_plant": false` dan jelaskan alasannya di `"rejection_reason"`.
+{$knownHint}ATURAN UTAMA ANTI-BIAS & PEMBACAAN SEGALA POSISI KAMERA:
+1. **Jangan Pernah Menolak Foto Tumbuhan yang Terlihat**:
+   - Pengguna memotret di lapangan dengan berbagai sudut (dari atas, samping, bawah daun, miring, terbalik, close-up sebagian helai daun, atau jarak sedang).
+   - Selama bagian tumbuhan (daun, batang, ranting, bunga, buah, atau rimpang) terlihat pada foto, **WAJIB** identifikasi spesies yang paling akurat secara botani (`"is_plant": true`, `"is_confident_species": true`).
+   - **JANGAN** menolak foto tumbuhan dengan alasan "foto buram", "kurang fokus", atau "terlalu jauh" selama siluet, bentuk tepi, atau susunan daun masih dapat dikenali.
+   - Tolak (`"is_plant": false`) HANYA jika foto sama sekali bukan tumbuhan (manusia, hewan, lantai, dinding, layar kosong) atau merupakan makanan/masakan matang (`"is_cooked_or_processed_food": true`).
+2. **Kunci Determinasi Botani Wajib (Isi `botanical_key_check` Sebelum Menentukan Nama)**:
+   - **Bentuk & Lekukan Tepi Daun (`leaf_lobes_and_margin`)**: Periksa dengan teliti apakah helai daun **berlekuk menjari / bercuping** (*palmately lobed* seperti Daun Anggur, Pepaya, Singkong, Jarak Pagar, Jarak Kepyar, Pare) atau **utuh tanpa lekukan** (*unlobed* seperti Binahong, Sirih, Salam, Alpukat, Mangga). Periksa tepi daun: **bergerigi kasar/tajam** (*coarsely serrate/dentate*), **bergerigi halus**, **beringgit** (*crenate*), atau **rata mulus** (*entire*).
+   - **Pola Pertulangan & Tekstur (`venation_and_surface`)**: Tulang daun **menjari dari pangkal** (*palmate* seperti Anggur/Jarak), **melengkung tegas dari pangkal ke ujung** (*campylodromous* seperti Sirih), **menyirip** (*pinnate*), atau **sejajar** (*parallel*). Tekstur: tipis seperti kertas, kaku mengilap, berbulu halus/kasar, atau tebal berdaging/sukulen.
+   - **Pembeda Spesies Mirip di Dunia (`lookalike_differentiation`)**: Bandingkan dengan spesies yang sekilas mirip agar tidak tertukar:
+     * **Daun Anggur (*Vitis vinifera*) vs Binahong (*Anredera cordifolia*) vs Daun Sirih (*Piper betle*)**:
+       - *Daun Anggur*: Berbentuk jantung-membulat dengan **3–5 lekukan cuping menjari yang jelas**, **tepi bergerigi kasar tidak beraturan**, pertulangan menjari menonjol, helai tipis-kasar tidak sukulen.
+       - *Binahong*: Tepi daun **rata mulus 100% tanpa gerigi dan tanpa lekukan cuping**, helai **tebal berdaging/sukulen**, permukaan licin mengilap, tulang daun samar.
+       - *Daun Sirih Hijau*: Tepi **rata mulus tanpa lekukan/gerigi**, helai **tipis-kaku (tidak sukulen)** dengan **5–7 tulang daun melengkung tajam beralur dalam**.
+     * **Daun Mint (*Mentha spicata* / *Mentha piperita*) vs Kemangi (*Ocimum × africanum*) vs Daun Jinten (*Plectranthus amboinicus*)**:
+       - *Mint*: Permukaan berkerut tegas (*rugose*), tepi bergerigi tajam teratur, tangkai sangat pendek.
+       - *Kemangi*: Helai tipis rata/halus, tepi rata hingga bergelombang halus, ujung meruncing, tangkai ramping panjang.
+       - *Daun Jinten*: Helai tebal berdaging, berbulu beludru rapat, tepi beringgit tumpul.
+     * **Daun Pepaya (*Carica papaya*) vs Daun Singkong (*Manihot esculenta*) vs Jarak Kepyar (*Ricinus communis*)**:
+       - *Pepaya*: Daun tunggal sangat besar berlekuk menjari dalam dengan cuping-cuping bercabang tidak beraturan, tangkai berongga panjang.
+       - *Singkong*: Daun menjari dengan 5–9 anak daun ramping memanjang bertepi rata.
+       - *Jarak Kepyar*: Daun menjari berbentuk bintang (7–11 cuping) dengan tepi bergerigi tajam teratur dan tangkai menempel agak ke tengah helai (*peltate*).
+     * **Kunyit (*Curcuma longa*) vs Temulawak (*Curcuma zanthorrhiza*) vs Jahe (*Zingiber officinale*) vs Lengkuas (*Alpinia galanga*) vs Kencur (*Kaempferia galanga*)**:
+       - Bedakan dari warna & serat rimpang atau susunan serta bentuk daunnya.
+3. **Tanaman Beracun (WAJIB `is_toxic`: true & akhiran `" (Beracun)"` pada `common_name_id`)**:
+   - Meskipun memiliki khasiat tradisional, jika tanaman mengandung racun berbahaya bagi manusia/hewan (seperti *Pokeweed* / *Phytolacca americana*, *Saga Rambat* / *Abrus precatorius*, *Kecubung* / *Datura metel*, *Bunga Terompet* / *Brugmansia*, *Jarak Pagar* / *Jatropha curcas*, *Jarak Kepyar* / *Ricinus communis*, *Bintaro* / *Cerbera manghas*, *Gadung* / *Dioscorea hispida*, *Patah Tulang* / *Euphorbia tirucalli*, *Tapak Dara* / *Catharanthus roseus*, *Tembelekan* / *Lantana camara*, *Dieffenbachia*, *Oleander* / *Nerium oleander*), wajib tetapkan `"is_toxic": true` dan tambahkan `" (Beracun)"` di akhir `common_name_id`.
 
 Kembalikan persis struktur JSON berikut:
 {
@@ -88,7 +79,11 @@ Kembalikan persis struktur JSON berikut:
   "rejection_reason": null,
   "detected_plants": [
     {
-      "morphological_analysis": "Ringkasan ciri visual: bentuk helai, ketebalan/sukulensi, pola urat daun, tepi, dan alasan pembeda dari spesies yang mirip.",
+      "botanical_key_check": {
+        "leaf_lobes_and_margin": "Deskripsi lekukan cuping & bentuk tepi daun",
+        "venation_and_surface": "Pola tulang daun & ketebalan/tekstur permukaan",
+        "lookalike_differentiation": "Alasan botani mengapa spesies ini berbeda dari tanaman mirip lainnya"
+      },
       "common_name_id": "string",
       "scientific_name": "string",
       "local_name": "string",
@@ -100,7 +95,7 @@ Kembalikan persis struktur JSON berikut:
       "safety_warning": "string",
       "is_toxic": false,
       "is_confident_species": true,
-      "confidence": 95,
+      "confidence": 94,
       "box_2d": [100, 100, 900, 900]
     }
   ]
@@ -150,7 +145,7 @@ PROMPT;
                         'version' => 1.1,
                     ])
                         ->connectTimeout(6)
-                        ->timeout(20)
+                        ->timeout(22)
                         ->withHeaders([
                             'Content-Type' => 'application/json',
                             'Expect' => '',
@@ -224,7 +219,7 @@ PROMPT;
     {
         $configuredModel = trim((string) (env('GEMINI_MODEL') ?: config('services.gemini.model', '')));
 
-        $listCacheKey = 'gemini_pool_models_v2_' . substr(md5($sampleKey), 0, 10);
+        $listCacheKey = 'gemini_pool_models_v4_' . substr(md5($sampleKey), 0, 10);
         $discovered = Cache::remember($listCacheKey, now()->addHours(12), function () use ($sampleKey) {
             try {
                 $res = Http::withOptions(['force_ip_resolve' => 'v4', 'version' => 1.1])
@@ -274,7 +269,6 @@ PROMPT;
             ? $configuredModel
             : null;
 
-        // Prioritaskan model Flash penuh (lebih tajam membaca tekstur & urat daun) sebelum Flash-Lite
         $merged = array_values(array_unique(array_filter([
             $validConfigured,
             'gemini-3.5-flash',
@@ -311,7 +305,7 @@ PROMPT;
                 }
 
                 ob_start();
-                imagejpeg($src, null, 88);
+                imagejpeg($src, null, 90);
                 $jpegBytes = ob_get_clean();
                 $src = null;
 
@@ -389,8 +383,8 @@ PROMPT;
                 'clinical_evidence' => isset($item['clinical_evidence']) ? trim((string) $item['clinical_evidence']) : null,
                 'safety_warning' => trim((string) ($item['safety_warning'] ?? 'Gunakan sesuai takaran wajar dan konsultasikan dengan tenaga kesehatan bila memiliki kondisi medis tertentu.')),
                 'is_toxic' => (bool) ($item['is_toxic'] ?? false),
-                'is_confident_species' => (bool) ($item['is_confident_species'] ?? false),
-                'confidence' => (int) ($item['confidence'] ?? 0),
+                'is_confident_species' => (bool) ($item['is_confident_species'] ?? true),
+                'confidence' => (int) ($item['confidence'] ?? 85),
                 'box_2d' => $box,
             ];
         }

@@ -424,7 +424,7 @@ class HerbalController extends Controller
             $confidence = (int) ($plantData['confidence'] ?? 0);
             $isConfidentSpecies = (bool) ($plantData['is_confident_species'] ?? false);
 
-            if (!$isConfidentSpecies || $confidence < 78) {
+            if ($confidence < 40) {
                 continue;
             }
 
