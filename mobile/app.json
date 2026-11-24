@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "HerbalScan",
+    "slug": "HerbalScan",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -11,19 +11,50 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#06140D",
+        "foregroundImage": "./assets/android-icon-foreground.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.fhmirmdnn.HerbalScan",
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-router",
-      "expo-status-bar"
-    ]
+      "expo-status-bar",
+      "expo-web-browser",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#06140D",
+          "image": "./assets/transparent.png",
+          "imageWidth": 1
+        }
+      ]
+    ],
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "4c3d6dc2-8fc8-4cf7-b1fa-990b5b8e425f"
+      }
+    },
+    "scheme": [
+      "herbalscan",
+      "com.fhmirmdnn.HerbalScan",
+      "com.googleusercontent.apps.772055532330-ovlurcou2ljnsp35iglgab2j9oeaoma7"
+    ],
+    "backgroundColor": "#06140D",
+    "splash": {
+      "image": "./assets/transparent.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#06140D"
+    }
   }
 }

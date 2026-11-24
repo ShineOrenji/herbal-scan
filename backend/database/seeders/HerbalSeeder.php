@@ -21,7 +21,7 @@ class HerbalSeeder extends Seeder
                 'lab_evidence' => 'Uji fitokimia dan in-vivo menunjukkan ekstrak etanol daun Averrhoa bilimbi memiliki aktivitas antihiperglikemik serta daya hambat antibakteri terhadap Staphylococcus aureus.',
                 'clinical_evidence' => 'Studi klinis terbatas pada ekstrak daun menunjukkan potensi penurunan glukosa darah postprandial, namun masih memerlukan uji skala besar lebih lanjut.',
                 'safety_warning' => 'Hindari konsumsi berlebihan pada penderita gangguan ginjal karena kandungan asam oksalat yang tinggi.',
-                'image_url' => null,
+                'is_curated' => true,
             ],
             [
                 'slug' => 'daun_teh',
@@ -34,7 +34,7 @@ class HerbalSeeder extends Seeder
                 'lab_evidence' => 'Kandungan Epigallocatechin gallate (EGCG) terbukti secara in-vitro menetralkan radikal bebas dan menghambat oksidasi kolesterol LDL.',
                 'clinical_evidence' => 'Meta-analisis uji klinis membuktikan konsumsi rutin Camellia sinensis membantu menurunkan tekanan darah sistolik dan memperbaiki profil lipid.',
                 'safety_warning' => 'Mengandung kafein; batasi konsumsi pada penderita GERD, insomnia, atau sensitivitas kafein.',
-                'image_url' => null,
+                'is_curated' => true,
             ],
             [
                 'slug' => 'jambu_biji',
@@ -47,7 +47,7 @@ class HerbalSeeder extends Seeder
                 'lab_evidence' => 'Kuersetin pada ekstrak daun Psidium guajava terbukti menghambat motilitas berlebih pada otot polos usus serta menekan aktivitas bakteri penyebab diare.',
                 'clinical_evidence' => 'Uji klinis acak menunjukkan ekstrak daun jambu biji mempercepat pemulihan gejala diare akut non-spesifik dan membantu menjaga jumlah trombosit.',
                 'safety_warning' => 'Konsumsi berlebihan dapat memicu konstipasi (sembelit) akibat kandungan tanin yang tinggi.',
-                'image_url' => null,
+                'is_curated' => true,
             ],
             [
                 'slug' => 'jeruk_nipis',
@@ -60,7 +60,7 @@ class HerbalSeeder extends Seeder
                 'lab_evidence' => 'Minyak atsiri daun Citrus aurantiifolia menunjukkan zona hambat signifikan terhadap bakteri penyebab infeksi saluran pernapasan atas.',
                 'clinical_evidence' => 'Kombinasi senyawa flavonoid dan vitamin C mendukung fungsi imun mukosa dan meredakan batuk ringan.',
                 'safety_warning' => 'Sifat asamnya dapat mengiritasi lambung jika dikonsumsi dalam keadaan perut kosong pada penderita maag.',
-                'image_url' => null,
+                'is_curated' => true,
             ],
             [
                 'slug' => 'kemangi',
@@ -73,7 +73,7 @@ class HerbalSeeder extends Seeder
                 'lab_evidence' => 'Ekstrak daun Ocimum basilicum terbukti menurunkan stres oksidatif dan menghambat mediator inflamasi siklooksigenase (COX-2).',
                 'clinical_evidence' => 'Studi klinis menunjukkan ekstrak kemangi memiliki efek adaptogenik ringan dan mendukung kesehatan saluran pencernaan.',
                 'safety_warning' => 'Kandungan estragole pada minyak atsiri murni tidak dianjurkan dikonsumsi dalam dosis pekat jangka panjang oleh ibu hamil.',
-                'image_url' => null,
+                'is_curated' => true,
             ],
             [
                 'slug' => 'lidah_buaya',
@@ -86,7 +86,7 @@ class HerbalSeeder extends Seeder
                 'lab_evidence' => 'Polisakarida acemannan pada Aloe vera terbukti merangsang proliferasi fibroblas dan sintesis kolagen secara in-vitro maupun in-vivo.',
                 'clinical_evidence' => 'Berbagai uji klinis mengonfirmasi gel lidah buaya topikal mempercepat epitelisasi luka bakar derajat satu dan dua dibanding plasebo.',
                 'safety_warning' => 'Pastikan getah kuning (lateks/aloin) di bawah kulit daun dicuci bersih sebelum digunakan karena dapat mengiritasi kulit atau memicu efek pencahar keras.',
-                'image_url' => null,
+                'is_curated' => true,
             ],
             [
                 'slug' => 'nangka',
@@ -99,7 +99,7 @@ class HerbalSeeder extends Seeder
                 'lab_evidence' => 'Ekstrak daun Artocarpus heterophyllus menunjukkan aktivitas penghambatan enzim alfa-amilase dan peningkatan toleransi glukosa pada model uji.',
                 'clinical_evidence' => 'Evaluasi klinis awal menunjukkan efek hipoglikemik ringan pada pasien diabetes tipe 2 sebagai terapi pendamping.',
                 'safety_warning' => 'Pantau kadar gula darah secara berkala jika dikonsumsi bersamaan dengan obat antidiabetes medis untuk mencegah hipoglikemia.',
-                'image_url' => null,
+                'is_curated' => true,
             ],
             [
                 'slug' => 'pandan',
@@ -112,7 +112,7 @@ class HerbalSeeder extends Seeder
                 'lab_evidence' => 'Ekstrak air daun Pandanus amaryllifolius terbukti menghambat enzim alfa-glukosidase dan menangkal radikal bebas secara signifikan.',
                 'clinical_evidence' => 'Studi klinis pada subjek sehat menunjukkan teh daun pandan membantu menekan lonjakan glukosa darah setelah makan.',
                 'safety_warning' => 'Aman dikonsumsi sebagai seduhan harian dalam takaran wajar; hindari penggunaan ekstrak pekat tanpa pengawasan medis.',
-                'image_url' => null,
+                'is_curated' => true,
             ],
             [
                 'slug' => 'pepaya',
@@ -125,7 +125,7 @@ class HerbalSeeder extends Seeder
                 'lab_evidence' => 'Senyawa karpain dan flavonoid dalam Carica papaya terbukti menstabilkan membran sel darah dan memiliki aktivitas imunomodulator.',
                 'clinical_evidence' => 'Uji klinis acak terkontrol membuktikan pemberian ekstrak daun pepaya mempercepat kenaikan jumlah trombosit pada pasien demam berdarah dengue.',
                 'safety_warning' => 'Tidak dianjurkan untuk ibu hamil karena senyawa papain konsentrasi tinggi berpotensi memicu kontraksi uterus.',
-                'image_url' => null,
+                'is_curated' => true,
             ],
             [
                 'slug' => 'seledri',
@@ -138,7 +138,7 @@ class HerbalSeeder extends Seeder
                 'lab_evidence' => 'Senyawa 3-n-butylphthalide pada Apium graveolens terbukti merelaksasi otot polos dinding pembuluh darah dan meningkatkan ekskresi natrium.',
                 'clinical_evidence' => 'Uji klinis pada penderita hipertensi ringan hingga sedang menunjukkan penurunan bermakna pada tekanan darah sistolik dan diastolik.',
                 'safety_warning' => 'Hati-hati pada penderita hipotensi (tekanan darah rendah) dan gangguan ginjal berat karena efek diuretiknya.',
-                'image_url' => null,
+                'is_curated' => true,
             ],
             [
                 'slug' => 'sirih',
@@ -151,7 +151,7 @@ class HerbalSeeder extends Seeder
                 'lab_evidence' => 'Hidroksikavikol dan eugenol pada Piper betle terbukti efektif menghambat pertumbuhan bakteri rongga mulut Streptococcus mutans dan jamur Candida albicans.',
                 'clinical_evidence' => 'Uji klinis obat kumur ekstrak daun sirih menunjukkan efektivitas sebanding dengan klorheksidin dalam mengurangi plak gigi dan gingivitis ringan.',
                 'safety_warning' => 'Utamakan penggunaan luar atau sebagai obat kumur; hindari mengunyah sirih bersama pinang dan kapur secara kronis karena risiko iritasi mukosa mulut.',
-                'image_url' => null,
+                'is_curated' => true,
             ],
         ];
 

@@ -16,9 +16,25 @@ export interface HerbalDetail {
   description: string;
   plant_parts_used: string;
   traditional_usage: string;
+  preparation_method?: string | null;
+  dosage_notes?: string | null;
+  contraindications?: string | null;
+  scientific_reference?: string | null;
   lab_evidence?: string;
   clinical_evidence?: string;
   safety_warning: string;
-  image_url?: string;
+  image_url?: string | null;
+  is_curated?: boolean;
   references: ScientificReference[];
+}
+
+export interface ScanHistoryItem {
+  id: number;
+  detected_slug: string;
+  confidence_score: number;
+  image_url?: string | null;
+  created_at: string;
+  plant_name: string;
+  scientific_name: string;
+  is_toxic: boolean;
 }
