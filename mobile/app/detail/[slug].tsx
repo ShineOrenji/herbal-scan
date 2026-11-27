@@ -18,6 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ApiSvc from '../../services/api';
+import { getLatestScanSession } from '../../services/classifier';
 const { getCachedHerbalBySlug, getHerbalBySlug, getPersistedHerbalBySlug } = ApiSvc;
 import { HerbalDetail } from '../../types/herbal';
 import BotanicalBackdrop from '../../components/BotanicalBackdrop';
@@ -36,11 +37,26 @@ try {
 
 type DetailTab = 'all' | 'botany' | 'clinical' | 'journals';
 
+function safeStr(val: unknown): string {
+  if (val === null || val === undefined) return '';
+  if (typeof val === 'string') return val;
+  if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+  if (Array.isArray(val)) return val.map(safeStr).filter(Boolean).join('\n');
+  if (typeof val === 'object') {
+    return Object.values(val as Record<string, unknown>)
+      .map(safeStr)
+      .filter(Boolean)
+      .join(' • ');
+  }
+  return '';
+}
+
 export default function HerbalDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
     slug: string;
     scannedImage?: string;
+    scannedImages?: string;
     confidence?: string;
   }>();
 
@@ -61,23 +77,72 @@ export default function HerbalDetailScreen() {
   const confidence = Array.isArray(params.confidence)
     ? params.confidence[0]
     : params.confidence;
-  const [localScanUri, setLocalScanUri] = useState<string | undefined>(undefined);
+  const initialSession = slug ? getLatestScanSession(slug) : null;
+  const [localScanUri, setLocalScanUri] = useState<string | undefined>(
+    initialSession?.primaryPhoto
+  );
+  const [anglePhotos, setAnglePhotos] = useState<string[]>(
+    initialSession?.anglePhotos ?? []
+  );
+  const [selectedAngleIdx, setSelectedAngleIdx] = useState<number>(0);
 
   useEffect(() => {
     let active = true;
-    if (slug && (rawScannedImage || confidence)) {
+    const rawListParam = Array.isArray(params.scannedImages)
+      ? params.scannedImages[0]
+      : params.scannedImages;
+    if (rawListParam) {
+      try {
+        const decodedList =
+          rawListParam.includes('%5B') || rawListParam.includes('%22') || rawListParam.includes('%2F')
+            ? decodeURIComponent(rawListParam)
+            : rawListParam;
+        const parsed = JSON.parse(decodedList);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const cleanList = parsed
+            .filter((u: any) => typeof u === 'string' && u.length > 0)
+            .map((u: string) =>
+              u.startsWith('file:/') && !u.startsWith('file:///')
+                ? u.replace(/^file:\/*/, 'file:///')
+                : u
+            );
+          setAnglePhotos(cleanList);
+          setSelectedAngleIdx(0);
+        }
+      } catch {}
+    }
+
+    const freshSession = slug ? getLatestScanSession(slug) : null;
+    if (freshSession) {
+      setLocalScanUri(freshSession.primaryPhoto);
+      if (freshSession.anglePhotos.length > 0) {
+        setAnglePhotos(freshSession.anglePhotos);
+      }
+    }
+
+    if (slug) {
       AsyncStorage.getItem(`herbal_scan_thumb_${slug}`)
         .then((uri) => {
           if (active && uri) setLocalScanUri(uri);
         })
         .catch(() => {});
+      AsyncStorage.getItem(`herbal_scan_angles_${slug}`)
+        .then((rawJson) => {
+          if (!active || !rawJson) return;
+          const parsed = JSON.parse(rawJson);
+          if (Array.isArray(parsed) && parsed.length > 1) {
+            setAnglePhotos((prev) => (prev.length > 1 ? prev : parsed));
+          }
+        })
+        .catch(() => {});
     } else {
       setLocalScanUri(undefined);
+      setAnglePhotos([]);
     }
     return () => {
       active = false;
     };
-  }, [slug, rawScannedImage, confidence]);
+  }, [slug, rawScannedImage, params.scannedImages, confidence]);
 
   const initialCached = slug ? getCachedHerbalBySlug(slug) : null;
   const [herbal, setHerbal] = useState<HerbalDetail | null>(initialCached);
@@ -90,14 +155,18 @@ export default function HerbalDetailScreen() {
     if (!slug) return;
     setErrorMsg(null);
     const diskCached = await getPersistedHerbalBySlug(slug);
-    if (diskCached) {
+    if (diskCached && typeof diskCached === 'object' && !Array.isArray(diskCached) && (diskCached.name || diskCached.slug)) {
       setHerbal((prev) => prev || diskCached);
       setLoading(false);
     }
     try {
       const res: any = await getHerbalBySlug(slug);
       const unwrapped = res?.data?.data ?? res?.data ?? res;
-      setHerbal(unwrapped);
+      if (unwrapped && typeof unwrapped === 'object' && !Array.isArray(unwrapped) && (unwrapped.name || unwrapped.slug)) {
+        setHerbal(unwrapped);
+      } else {
+        throw new Error('Data detail spesies tidak valid.');
+      }
     } catch (err: any) {
       setErrorMsg(
         err?.response?.data?.message ||
@@ -189,6 +258,9 @@ export default function HerbalDetailScreen() {
       herbal={herbal}
       scannedImage={scannedImage}
       localScanUri={localScanUri}
+      anglePhotos={anglePhotos}
+      selectedAngleIdx={selectedAngleIdx}
+      setSelectedAngleIdx={setSelectedAngleIdx}
       confidence={confidence}
       refreshing={refreshing}
       onRefresh={onRefresh}
@@ -205,6 +277,9 @@ interface DetailBodyProps {
   herbal: HerbalDetail;
   scannedImage?: string;
   localScanUri?: string;
+  anglePhotos?: string[];
+  selectedAngleIdx?: number;
+  setSelectedAngleIdx?: (idx: number) => void;
   confidence?: string;
   refreshing: boolean;
   onRefresh: () => void;
@@ -254,6 +329,9 @@ function DetailBody({
   herbal,
   scannedImage,
   localScanUri,
+  anglePhotos = [],
+  selectedAngleIdx = 0,
+  setSelectedAngleIdx = () => {},
   confidence,
   refreshing,
   onRefresh,
@@ -273,6 +351,9 @@ function DetailBody({
       if (!u || typeof u !== 'string') return null;
       const t = u.trim();
       if (!t || t === 'undefined' || t === 'null') return null;
+      if (t.startsWith('file:/') && !t.startsWith('file:///')) {
+        return t.replace(/^file:\/*/, 'file:///');
+      }
       if (t.startsWith('/storage/') || t.startsWith('/uploads/')) {
         return origin ? `${origin}${t}` : t;
       }
@@ -281,9 +362,10 @@ function DetailBody({
       }
       return t;
     };
-    const uPhoto = localScanUri || normalize(scannedImage);
+    const normScanned = normalize(scannedImage);
+    const uPhoto = normScanned || localScanUri;
     const cPhoto = normalize(herbal.image_url);
-    const list = Array.from(new Set([uPhoto, cPhoto].filter(Boolean) as string[]));
+    const list = Array.from(new Set([normScanned, localScanUri, cPhoto].filter(Boolean) as string[]));
     return { userPhotoUri: uPhoto, catalogPhotoUri: cPhoto, heroCandidates: list };
   }, [scannedImage, localScanUri, herbal.image_url]);
 
@@ -558,7 +640,7 @@ function DetailBody({
                     {isToxic ? 'Peringatan Toksisitas Tinggi' : 'Catatan Keamanan Konsumsi'}
                   </Text>
                   <Text style={[styles.safetyDesc, isToxic && { color: '#fee2e2' }]}>
-                    {herbal.safety_warning}
+                    {safeStr(herbal.safety_warning)}
                   </Text>
                 </View>
               </GlassView>
@@ -567,31 +649,108 @@ function DetailBody({
             {/* BOTANI */}
             {showBotany && (
               <>
-                {userPhotoUri && catalogPhotoUri && userPhotoUri !== catalogPhotoUri && (
-                  <GlassView radius={26} intensity={32} contentStyle={styles.blockInner}>
-                    <SectionHead icon="images-outline" title="Perbandingan Visual Spesimen" />
-                    <View style={styles.compareGrid}>
-                      <View style={styles.compareCol}>
-                        <Image source={{ uri: userPhotoUri }} style={styles.compareImg} resizeMode="cover" />
-                        <Text style={styles.compareLabel}>Hasil Kamera Anda</Text>
+                {(() => {
+                  const activeUserPhoto =
+                    anglePhotos[Math.min(selectedAngleIdx, Math.max(0, anglePhotos.length - 1))] ||
+                    userPhotoUri ||
+                    localScanUri;
+                  const showUserCard = Boolean(
+                    activeUserPhoto && (hasScore || scannedImage || localScanUri || anglePhotos.length > 0)
+                  );
+                  const showCatalogCard = Boolean(
+                    catalogPhotoUri && (!activeUserPhoto || catalogPhotoUri !== activeUserPhoto)
+                  );
+
+                  if (!showUserCard && !showCatalogCard) return null;
+
+                  return (
+                    <GlassView radius={26} intensity={32} contentStyle={styles.blockInner}>
+                      <SectionHead
+                        icon="images-outline"
+                        title="Perbandingan Visual Spesimen"
+                        caption={
+                          anglePhotos.length > 1
+                            ? `${anglePhotos.length} sudut spesimen direkam`
+                            : undefined
+                        }
+                      />
+                      <View style={styles.compareGrid}>
+                        {showUserCard && activeUserPhoto ? (
+                          <View style={styles.compareCol}>
+                            <Image
+                              source={{ uri: activeUserPhoto }}
+                              style={styles.compareImg}
+                              resizeMode="cover"
+                            />
+                            <Text style={styles.compareLabel}>
+                              {anglePhotos.length > 1
+                                ? `Hasil Kamera (Sudut ${selectedAngleIdx + 1})`
+                                : 'Hasil Kamera Anda'}
+                            </Text>
+                          </View>
+                        ) : null}
+                        {showCatalogCard && catalogPhotoUri ? (
+                          <View style={styles.compareCol}>
+                            <Image
+                              source={{ uri: catalogPhotoUri }}
+                              style={styles.compareImg}
+                              resizeMode="cover"
+                            />
+                            <Text style={styles.compareLabel}>Referensi Taksonomi</Text>
+                          </View>
+                        ) : null}
                       </View>
-                      <View style={styles.compareCol}>
-                        <Image source={{ uri: catalogPhotoUri }} style={styles.compareImg} resizeMode="cover" />
-                        <Text style={styles.compareLabel}>Referensi Taksonomi</Text>
-                      </View>
-                    </View>
-                  </GlassView>
-                )}
+                      {anglePhotos.length > 1 && (
+                        <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                          {anglePhotos.map((_angUri, aIdx) => {
+                            const labels = ['Sudut 1', 'Sudut 2', 'Sudut 3'];
+                            const active = selectedAngleIdx === aIdx;
+                            return (
+                              <TouchableOpacity
+                                key={`det-angle-${aIdx}`}
+                                activeOpacity={0.85}
+                                onPress={() => setSelectedAngleIdx(aIdx)}
+                                style={{
+                                  flex: 1,
+                                  paddingVertical: 7,
+                                  paddingHorizontal: 8,
+                                  borderRadius: 12,
+                                  alignItems: 'center',
+                                  backgroundColor: active
+                                    ? 'rgba(74, 222, 128, 0.25)'
+                                    : 'rgba(255, 255, 255, 0.07)',
+                                  borderWidth: 1,
+                                  borderColor: active ? '#4ade80' : 'rgba(255, 255, 255, 0.14)',
+                                }}
+                              >
+                                <Text
+                                  numberOfLines={1}
+                                  style={{
+                                    color: active ? '#bbf7d0' : '#ecfdf5',
+                                    fontSize: 11,
+                                    fontWeight: '700',
+                                  }}
+                                >
+                                  {labels[aIdx] || `Sudut ${aIdx + 1}`}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      )}
+                    </GlassView>
+                  );
+                })()}
 
                 <GlassView radius={26} intensity={32} contentStyle={styles.blockInner}>
                   <SectionHead icon="reader-outline" title="Deskripsi Botani & Morfologi" />
-                  <Text style={styles.paragraphText}>{herbal.description}</Text>
+                  <Text style={styles.paragraphText}>{safeStr(herbal.description)}</Text>
                 </GlassView>
 
                 {herbal.traditional_usage ? (
                   <GlassView radius={26} intensity={32} contentStyle={styles.blockInner}>
                     <SectionHead icon="medkit-outline" title="Khasiat & Pemanfaatan Empiris" />
-                    <Text style={styles.paragraphText}>{herbal.traditional_usage}</Text>
+                    <Text style={styles.paragraphText}>{safeStr(herbal.traditional_usage)}</Text>
                   </GlassView>
                 ) : null}
 
@@ -609,7 +768,7 @@ function DetailBody({
                         <Text style={{ color: "#a7f3d0", fontSize: 13, fontWeight: "700", marginBottom: 4 }}>
                           Langkah Pengolahan
                         </Text>
-                        <Text style={styles.paragraphText}>{herbal.preparation_method}</Text>
+                        <Text style={styles.paragraphText}>{safeStr(herbal.preparation_method)}</Text>
                       </View>
                     ) : null}
 
@@ -618,7 +777,7 @@ function DetailBody({
                         <Text style={{ color: "#6ee7b7", fontSize: 12, fontWeight: "700", marginBottom: 3 }}>
                           Takaran & Aturan Pakai
                         </Text>
-                        <Text style={styles.paragraphText}>{herbal.dosage_notes}</Text>
+                        <Text style={styles.paragraphText}>{safeStr(herbal.dosage_notes)}</Text>
                       </View>
                     ) : null}
 
@@ -627,13 +786,13 @@ function DetailBody({
                         <Text style={{ color: "#fca5a5", fontSize: 12, fontWeight: "700", marginBottom: 3 }}>
                           Kontraindikasi & Larangan
                         </Text>
-                        <Text style={[styles.paragraphText, { color: "#fee2e2" }]}>{herbal.contraindications}</Text>
+                        <Text style={[styles.paragraphText, { color: "#fee2e2" }]}>{safeStr(herbal.contraindications)}</Text>
                       </View>
                     ) : null}
 
                     {herbal.scientific_reference ? (
                       <Text style={{ color: "rgba(236, 253, 245, 0.65)", fontSize: 11, fontStyle: "italic", marginTop: 4 }}>
-                        Rujukan: {herbal.scientific_reference}
+                        Rujukan: {safeStr(herbal.scientific_reference)}
                       </Text>
                     ) : null}
                   </GlassView>
@@ -657,7 +816,7 @@ function DetailBody({
                       <View style={styles.evidenceDot} />
                       <Text style={styles.evidenceSubTitle}>Uji Laboratorium (In Vitro / In Vivo)</Text>
                     </View>
-                    <Text style={styles.paragraphText}>{herbal.lab_evidence}</Text>
+                    <Text style={styles.paragraphText}>{safeStr(herbal.lab_evidence)}</Text>
                   </View>
                 ) : null}
 
@@ -669,7 +828,7 @@ function DetailBody({
                         Kajian Uji Klinis Manusia
                       </Text>
                     </View>
-                    <Text style={styles.paragraphText}>{herbal.clinical_evidence}</Text>
+                    <Text style={styles.paragraphText}>{safeStr(herbal.clinical_evidence)}</Text>
                   </View>
                 ) : null}
               </GlassView>

@@ -379,6 +379,8 @@ class HerbalController extends Controller
 
         $request->validate([
             'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:20480'],
+            'images' => ['nullable', 'array', 'max:3'],
+            'images.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:20480'],
         ]);
 
         $hostUrl = rtrim($request->getSchemeAndHttpHost(), '/');
@@ -394,8 +396,23 @@ class HerbalController extends Controller
             ->get()
             ->toArray();
 
+        $extraImagePaths = [];
+        if ($request->hasFile('images')) {
+            foreach ((array) $request->file('images') as $extraFile) {
+                if ($extraFile && $extraFile->isValid()) {
+                    $p = $extraFile->getRealPath();
+                    if ($p && $p !== $fullImagePath && @getimagesize($p) !== false) {
+                        $extraImagePaths[] = $p;
+                    }
+                }
+                if (count($extraImagePaths) >= 2) {
+                    break;
+                }
+            }
+        }
+
         try {
-            $vision = $this->visionService->identifyPlant($fullImagePath, $knownSpecies);
+            $vision = $this->visionService->identifyPlant($fullImagePath, $knownSpecies, $extraImagePaths);
         } catch (\Throwable $visionError) {
             Log::warning('Vision AI gagal, mencoba fallback TFLite offline: ' . $visionError->getMessage());
 

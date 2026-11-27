@@ -1,40 +1,42 @@
 # 🌿 HerbalScan — Sistem Identifikasi & Asisten Botani Berbasis Hybrid AI
 
-**HerbalScan** adalah aplikasi mobile lintas platform (*Android & iOS*) untuk mengidentifikasi spesies tumbuhan herbal, tanaman buah/hias/bonsai, serta tumbuhan liar beracun secara instan melalui kamera smartphone. Aplikasi ini memadukan **Hybrid Cloud Vision (PlantNet API + Google Gemini 2.5 Flash)** dengan dukungan deteksi tunggal maupun **multi-spesimen (1–5 tanaman sekaligus)**, validasi literatur jurnal ilmiah terindeks DOI, serta **HerbBOT AI** sebagai asisten konsultasi botani dan etnofarmakologi kontekstual.
+**HerbalScan** adalah aplikasi mobile lintas platform (*Android & iOS*) untuk mengidentifikasi spesies tumbuhan herbal, tanaman budidaya/hias/bonsai, serta tumbuhan liar beracun secara instan melalui kamera maupun galeri smartphone. Aplikasi ini memadukan **Hybrid Cloud Vision (PlantNet API + Google Gemini 2.5 Flash)** dengan dukungan pemindaian **1–3 sudut spesimen**, deteksi **multi-spesimen (1–5 tanaman sekaligus)**, validasi literatur jurnal ilmiah terindeks DOI, serta **HerbBOT AI** sebagai asisten konsultasi botani dan etnofarmakologi kontekstual.
 
 ---
 
 ## 🎯 Ringkasan Eksekutif (Bahan Pitching & Presentasi)
 
-- **Latar Belakang Masalah:** Masyarakat sering kesulitan membedakan tanaman herbal maupun tanaman budidaya yang aman dengan tumbuhan liar beracun yang bentuk daunnya mirip, termasuk saat mengamati beberapa tanaman sekaligus di pekarangan maupun kebun, serta minimnya akses cepat ke bukti ilmiah dan panduan pengolahan yang aman.
-- **Solusi:** Aplikasi pemindai tanaman cerdas yang mampu mendeteksi 1 hingga 5 spesimen tumbuhan berbeda dalam satu foto (baik foto kamera HD maupun foto galeri non-HD), menampilkan identitas spesies berbahasa Indonesia, kotak deteksi berwarna (*color-coded bounding box*), status keamanan (*Aman vs Beracun*), cara pengolahan tradisional, referensi jurnal ilmiah terbaru (≥ 2020), serta asisten AI **HerbBOT** untuk tanya-jawab interaktif.
+- **Latar Belakang Masalah:** Masyarakat sering kesulitan membedakan tanaman herbal maupun tanaman budidaya yang aman dengan tumbuhan liar beracun yang bentuk daunnya mirip (misalnya *Daun Dewa* vs *Jonghe* atau *Anting Putri* vs *Melati*), termasuk saat mengamati beberapa tanaman sekaligus di pekarangan maupun kebun, serta minimnya akses cepat ke bukti ilmiah dan panduan pengolahan yang aman.
+- **Solusi:** Aplikasi pemindai tanaman cerdas yang mampu mendeteksi 1 hingga 5 spesimen tumbuhan berbeda dalam satu foto maupun menganalisis hingga **3 sudut foto dari satu tanaman** (Daun, Batang/Ranting, Bunga/Buah), menampilkan identitas spesies berbahasa Indonesia, kotak deteksi berwarna (*color-coded bounding box*), status keamanan (*Aman vs Beracun*), cara pengolahan tradisional, referensi jurnal ilmiah terbaru (≥ 2020), serta asisten AI **HerbBOT** untuk tanya-jawab interaktif.
 - **Nilai Jual Utama (*Unique Value Proposition*):**
   1. **Arsitektur Multi-Layer Hybrid AI:** Menggabungkan akurasi taksonomi **PlantNet** dengan penalaran botani spasial **Google Gemini 2.5 Flash** di server serta aset model **MobileNetV2 (TensorFlow Lite)** di paket aplikasi.
-  2. **Deteksi Multi-Spesimen & Color-Coded Bounding Box (1–5 Tanaman):** Mampu mengidentifikasi hingga 5 spesies berbeda dalam satu tangkapan kamera dan memetakannya dengan kotak deteksi berwarna berbeda (`#1`–`#5`) beserta kartu detail geser.
-  3. **Botanical Guardrails & Anti-Ngasal (*Low-Confidence Rejection*):** Menormalisasi nama asing ke nama populer Indonesia (misalnya *Ficus racemosa* sebagai **Loa**), mencegah label beracun palsu pada tanaman budidaya seperti **Anggur** (*Vitis*), serta menolak foto buram/non-tanaman agar AI tidak menebak sembarangan.
-  4. **Deteksi Dini Tanaman Beracun (*Toxic Alert*):** Menandai otomatis spesies berbahaya dengan label peringatan khusus serta kotak deteksi berwarna **merah** di layar pemindai.
-  5. **Asisten AI Botani Kontekstual (*HerbBOT*):** Asisten tanya-jawab cerdas yang otomatis memahami profil lengkap tanaman yang sedang dibuka (cara pengolahan, takaran pakai, kontraindikasi, peringatan toksisitas) maupun konsultasi herbal umum dengan riwayat tersinkronisasi per akun.
-  6. **Validasi Literatur Ilmiah & Katalog Dinamis:** Katalog monograf dimulai dari **11 spesies herbal kurasi default** dan otomatis bertambah dari hasil pemindaian pengguna (diurutkan dari pemindaian terbaru di posisi paling atas), lengkap dengan foto referensi **iNaturalist** dan jurnal ilmiah ber-DOI (≥ 2020) dari **Europe PMC**, **Crossref**, dan **OpenAlex**.
+  2. **Pemindaian Multi-Sudut Opsional (1–3 Foto):** Foto tunggal langsung dapat dipindai dalam satu klik, sedangkan untuk spesies yang daunnya mirip pengguna dapat menambahkan hingga 3 sudut (**1. Daun**, **2. Batang**, **3. Bunga**) agar sistem menggabungkan seluruh ciri morfologi sebelum mengunci spesies.
+  3. **Deteksi Multi-Spesimen & Color-Coded Bounding Box (1–5 Tanaman):** Mampu mengidentifikasi hingga 5 spesies berbeda dalam satu tangkapan kamera dan memetakannya dengan kotak deteksi berwarna berbeda (`#1`–`#5`) beserta kartu detail geser.
+  4. **Botanical Guardrails & Anti-Ngasal (*Low-Confidence Rejection*):** Menormalisasi nama asing ke nama populer Indonesia (misalnya *Ficus racemosa* sebagai **Loa**), membedakan spesies mirip (*Anting Putri* vs *Melati Putih*, *Daun Dewa* vs *Jonghe*, *Sancang* vs *Jati Emas*, *Pepaya Muda* vs *Ginseng Jawa*), serta menolak foto buram/non-tanaman agar AI tidak menebak sembarangan.
+  5. **Deteksi Dini Tanaman Beracun (*Toxic Alert*):** Menandai otomatis spesies berbahaya dengan label peringatan khusus serta kotak deteksi berwarna **merah** di layar pemindai.
+  6. **Asisten AI Botani Kontekstual (*HerbBOT*):** Asisten tanya-jawab cerdas yang otomatis memahami profil lengkap tanaman yang sedang dibuka (cara pengolahan, takaran pakai, kontraindikasi, peringatan toksisitas) maupun konsultasi herbal umum dengan riwayat tersinkronisasi per akun.
+  7. **Validasi Literatur Ilmiah & Katalog Dinamis:** Katalog monograf dimulai dari **11 spesies herbal kurasi default** dan otomatis bertambah dari hasil pemindaian pengguna (diurutkan dari pemindaian terbaru di posisi paling atas), lengkap dengan foto referensi **iNaturalist** dan jurnal ilmiah ber-DOI (≥ 2020) dari **Europe PMC**, **Crossref**, dan **OpenAlex**.
 
 ---
 
 ## 🧠 Arsitektur AI & Alur Kerja Sistem (*End-to-End Pipeline*)
 
 ```text
-[Kamera / Galeri Smartphone (HD maupun Non-HD)]
+[Kamera / Galeri Smartphone — 1 Foto Utama atau Hingga 3 Sudut Spesimen]
              │
              ▼
-1. Adaptive Image Normalization & Transport (mobile/services/classifier.ts)
-   └─ Penyesuaian rotasi EXIF, resize optimal (1024px), & kompresi JPEG hemat bandwidth
+1. Adaptive Image Normalization & Multi-Angle Transport (mobile/services/classifier.ts)
+   └─ Penyesuaian rotasi EXIF, resize optimal (1024px utama / 960px sudut tambahan),
+      & kompresi JPEG hemat bandwidth
              │
              ▼
 2. Cloud Taxonomic Matching (PlantNet API — HerbalVisionService.php)
-   └─ Pencocokan morfologi daun/ranting/bunga tanaman dominan ke database botani global (Top-5)
+   └─ Pencocokan morfologi multi-organ (daun, batang, bunga/buah) ke database botani global (Top-5)
              │
              ▼
 3. Multimodal Spatial & Botanical Guardrails (Google Gemini 2.5 Flash)
-   └─ Deteksi 1–5 spesimen (`box_2d`), kunci determinasi daun, normalisasi nama Indonesia,
-      filter anti-bias/toksisitas, & penolakan foto tidak fokus (`low_confidence_rejected`)
+   └─ Penggabungan analisis 1–3 sudut, deteksi 1–5 spesimen (`box_2d`), kunci determinasi
+      pembeda spesies mirip, normalisasi nama Indonesia, & penolakan foto tidak valid
              │
              ▼
 4. Conversational Botanical Assistant (HerbBOT AI — HerbBotService.php)
@@ -49,10 +51,10 @@
 
 - **Taxonomic Vision — PlantNet API**
   - **Lokasi Kode:** `backend/app/Services/HerbalVisionService.php`
-  - **Fungsi Utama:** Menghasilkan 5 kandidat spesies botani teratas berdasarkan kemiripan morfologi organ tumbuhan paling dominan di bingkai.
+  - **Fungsi Utama:** Menghasilkan 5 kandidat spesies botani teratas berdasarkan kemiripan morfologi organ tumbuhan (mendukung lampiran multi-foto dari spesimen yang sama).
 - **Multimodal Vision LLM — Google Gemini 2.5 Flash**
   - **Lokasi Kode:** `backend/app/Services/HerbalVisionService.php`
-  - **Fungsi Utama:** Mengidentifikasi seluruh spesimen berbeda (1–5 tanaman), menghasilkan koordinat `box_2d`, menjalankan kunci determinasi daun, menormalisasi nama populer Indonesia, mendeteksi status beracun, dan menyusun informasi etnofarmakologi.
+  - **Fungsi Utama:** Menggabungkan informasi dari 1–3 sudut foto, mengidentifikasi seluruh spesimen berbeda (1–5 tanaman), menghasilkan koordinat `box_2d`, menjalankan kunci determinasi pembeda spesies mirip, menormalisasi nama populer Indonesia, mendeteksi status beracun, dan menyusun informasi etnofarmakologi.
 - **Conversational AI — Google Gemini 2.5 Flash (`HerbBOT`)**
   - **Lokasi Kode:** `backend/app/Services/HerbBotService.php` & `mobile/components/herbbot/`
   - **Fungsi Utama:** Menjawab pertanyaan pengguna seputar khasiat, cara pengolahan, takaran, dan keamanan tanaman secara kontekstual berlatensi rendah (< 1,5 detik) dengan chip saran pertanyaan lanjutan otomatis.
@@ -64,23 +66,31 @@
 
 ## ✨ Fitur Lengkap Aplikasi
 
-1. **Pemindaian Kamera & Galeri Cerdas (Single, Multi-Spesimen, & Non-HD Resilient)**
-   - Mendukung pemotretan jarak dekat (detail ranting & helai daun), jarak menengah/jauh (pohon atau bonsai dalam pot), foto galeri resolusi standar/non-HD, maupun pemindaian **beberapa tanaman sekaligus (1–5 spesies)** dalam satu bingkai.
-   - **Mode Tunggal (`1 Tanaman`):** Langsung membuka halaman detail spesies dengan foto hasil kamera/galeri pengguna tampil sebagai gambar utama dan perbandingan visual spesimen.
+1. **Pemindaian Kamera & Galeri Cerdas (1–3 Sudut Spesimen & Multi-Spesimen 1–5 Tanaman)**
+   - **Alur Cepat 1 Foto:** Satu tangkapan kamera atau galeri langsung dapat dipindai tanpa langkah tambahan.
+   - **Opsi Multi-Sudut (Hingga 3 Foto):** Pada layar pratinjau tersedia 3 slot sudut (**`1. Daun`**, **`2. Batang`**, **`3. Bunga`**) untuk merekam organ tambahan dari kamera maupun galeri, yang kemudian dapat ditinjau kembali lewat pemilih **`Sudut 1`**, **`Sudut 2`**, **`Sudut 3`** di halaman detail.
    - **Mode Multi-Spesimen (`2–5 Tanaman`):** Menampilkan *color-coded bounding box* interaktif pada foto (**#1 Hijau, #2 Biru, #3 Kuning, #4 Ungu, #5 Merah Muda**) lengkap dengan kartu geser (*horizontal drawer*) dan skor keyakinan masing-masing.
 2. **HerbBOT — Asisten AI Botani & Herbal Kontekstual**
    - **Mode Kontekstual Tanaman:** Saat dibuka dari halaman Detail tanaman (lewat tombol melayang *Draggable FAB*), HerbBOT otomatis membaca profil lengkap tanaman tersebut—termasuk status toksisitas, cara pengolahan, takaran pakai, dan kontraindikasi.
    - **Mode Konsultasi Umum:** Dapat diakses langsung dari Beranda untuk berdiskusi seputar perbandingan spesies herbal, racikan aman, maupun perawatan tanaman.
    - **Pengalaman Chat Modern:** Dilengkapi saran pertanyaan lanjutan interaktif (*suggestion chips*), format teks terstruktur, penyimpanan riwayat percakapan di cloud (TiDB) dan lokal (`AsyncStorage`), gestur *swipe-to-delete* pada panel riwayat, serta dialog konfirmasi hapus/reset terpusat.
-3. **Sistem Peringatan Tanaman Beracun (*Toxic Alert*)**
-   - Spesies beracun (seperti *Pakis Haji*, *Kamboja Jepang*, *Kecubung*, *Bintaro*, *Tapak Dara*, *Patah Tulang*, *Awar-awar*, *Janda Bolong*, *Ki Tolod*) otomatis diberi penanda **`(Beracun)`**, kotak deteksi berwarna **merah**, dan peringatan keamanan tegas, sementara tanaman pangan/budidaya aman (seperti *Anggur*) dilindungi dari salah deteksi racun.
+3. **Botanical Guardrails & Peringatan Tanaman Beracun (*Toxic Alert*)**
+   - **Pembeda Spesies Mirip:** Memisahkan spesies yang sering tertukar secara visual maupun terjemahan nama umum, antara lain **Anting Putri** (*Wrightia religiosa*) vs **Melati Putih** (*Jasminum sambac*), **Daun Dewa** (*Gynura divaricata*) vs **Jonghe/Sintrong** (*Crassocephalum crepidioides*), **Loa** (*Ficus racemosa*), **Sancang** (*Premna*), **Saeng Simbar** (*Serissa japonica*), dan **Pepaya Muda** (*Carica papaya*) vs **Ginseng Jawa** (*Talinum paniculatum*).
+   - **Peringatan Toksisitas:** Spesies beracun (seperti *Pakis Haji*, *Kamboja Jepang*, *Kecubung*, *Bintaro*, *Tapak Dara*, *Patah Tulang*, *Jonghe/Sintrong*, *Dieffenbachia*, *Oleander*) otomatis diberi penanda **`(Beracun)`**, kotak deteksi berwarna **merah**, dan peringatan keamanan tegas.
 4. **Katalog Monograf Dinamis & Filter Kategori**
    - Dimulai dari **11 monograf herbal kurasi default** dan otomatis bertambah setiap kali spesies baru dipindai, dengan urutan **tanaman terbaru di posisi paling atas** pada Beranda maupun Katalog Pencarian.
    - Pencarian instan berdasarkan nama populer Indonesia, nama daerah (Sunda, Jawa, Melayu, dll.), maupun nama ilmiah, dilengkapi filter pintar: `Semua`, `Herbal Aman`, `Beracun`, `Daun`, `Rimpang`, `Buah & Bunga`, serta kategori manfaat kesehatan.
 5. **Referensi Jurnal Ilmiah Terindeks DOI (≥ 2020)**
    - Menarik publikasi penelitian terbaru ber-DOI dari **Europe PMC**, **Crossref**, dan **OpenAlex**, serta mengklasifikasikan tingkat bukti ke dalam **`Tradisional`**, **`Laboratorium`**, dan **`Uji Klinis`**.
 6. **Autentikasi & Riwayat Pemindaian (*Cloud Sync*)**
-   - Registrasi akun dengan verifikasi **OTP Email (Gmail SMTP)**, Login standar, **Google Sign-In (OAuth)**, manajemen profil/avatar, dan riwayat pemindaian tersinkronisasi per akun.
+   - Registrasi akun dengan verifikasi **OTP Email (Gmail SMTP)**, Login standar, **Google Sign-In (OAuth)**, manajemen profil/avatar, dan riwayat pemindaian tersinkronisasi per akun dengan rendering monograf anti-crash.
+
+---
+
+## 🏷️ Riwayat Rilis
+
+- **`HerbalScan v1.0`** — Rilis penuh sistem Hybrid AI (PlantNet + Google Gemini 2.5 Flash), deteksi multi-spesimen 1–5 tanaman dengan *color-coded bounding box*, asisten AI **HerbBOT**, integrasi jurnal ilmiah DOI (≥ 2020), autentikasi OTP Gmail & Google OAuth, serta katalog dinamis TiDB Cloud.
+- **`HerbalScan v1.5`** — Penambahan fitur opsional **pemindaian 1–3 sudut spesimen** (Daun, Batang, Bunga) dengan pemilih `Sudut 1 / 2 / 3` pada halaman detail, penguatan **Botanical Guardrails** untuk spesies mirip (*Anting Putri vs Melati Putih*, *Daun Dewa vs Jonghe*), sinkronisasi sesi foto hasil scan langsung ke detail & riwayat, serta validasi anti-crash untuk seluruh kolom monograf.
 
 ---
 
@@ -108,7 +118,7 @@ herbal-scan/
 │   ├── app/
 │   │   ├── Http/Controllers/Api/
 │   │   │   ├── AuthController.php              # OTP Gmail, Login, Google OAuth, Profil & Avatar
-│   │   │   ├── HerbalController.php            # Katalog Dinamis, Filter, Detail Slug, Multi-Scan & Riwayat
+│   │   │   ├── HerbalController.php            # Katalog Dinamis, Filter, Detail Slug, Multi-Angle & Riwayat
 │   │   │   └── HerbBotController.php           # Sesi chat, thread per tanaman/umum, & manajemen pesan
 │   │   ├── Models/
 │   │   │   ├── Herbal.php                      # Model spesies tanaman, atribut toksisitas, & monograf
@@ -118,7 +128,7 @@ herbal-scan/
 │   │   │   ├── HerbBotMessage.php              # Model pesan percakapan HerbBOT
 │   │   │   └── User.php                        # Model pengguna & token Sanctum
 │   │   └── Services/
-│   │       ├── HerbalVisionService.php         # Pipeline Hybrid PlantNet + Gemini (1–5 Spesimen & Guardrails)
+│   │       ├── HerbalVisionService.php         # Pipeline Hybrid PlantNet + Gemini (1–3 Sudut, 1–5 Spesimen & Guardrails)
 │   │       ├── HerbBotService.php              # Layanan AI percakapan botani berlatensi rendah
 │   │       ├── EuropePmcService.php            # Pencarian jurnal Europe PMC, Crossref, OpenAlex
 │   │       └── BotanicalImageService.php       # Pengambilan foto referensi botani (iNaturalist)
@@ -131,11 +141,11 @@ herbal-scan/
     ├── app/
     │   ├── (tabs)/
     │   │   ├── index.tsx                       # Beranda, Filter Chips, Pintasan HerbBOT & Katalog Terbaru
-    │   │   ├── scan.tsx                        # Kamera/Galeri, Color-Coded Bounding Box & Multi-Drawer
+    │   │   ├── scan.tsx                        # Kamera/Galeri, Slot 1–3 Sudut, Bounding Box & Multi-Drawer
     │   │   ├── search.tsx                      # Pencarian katalog herbal & filter kategori
     │   │   ├── history.tsx                     # Riwayat pemindaian pengguna & foto lokal
     │   │   └── profile.tsx                     # Pengaturan akun & profil pengguna
-    │   ├── detail/[slug].tsx                   # Detail tanaman, perbandingan foto user, klinis & jurnal DOI
+    │   ├── detail/[slug].tsx                   # Detail tanaman, pemilih Sudut 1/2/3, klinis & jurnal DOI
     │   ├── auth.tsx                            # Layar Login, Register OTP, & Google Sign-In
     │   └── index.tsx                           # Entry point & navigasi awal
     ├── components/
@@ -155,7 +165,7 @@ herbal-scan/
     │   └── HerbalConfirmModal.tsx              # Dialog konfirmasi terpusat untuk aksi hapus/reset
     └── services/
         ├── api.ts                              # Klien HTTP Axios, cache katalog, & endpoint HerbBOT
-        └── classifier.ts                       # Optimasi foto & komunikasi payload identifikasi
+        └── classifier.ts                       # Optimasi multi-foto, store sesi scan, & payload identifikasi
 ```
 
 ---
@@ -175,7 +185,7 @@ herbal-scan/
 ### 1. Clone Repositori
 
 ```bash
-git clone [https://github.com/ShineOrenji/herbal-scan.git](https://github.com/ShineOrenji/herbal-scan.git)
+git clone https://github.com/ShineOrenji/herbal-scan.git
 cd herbal-scan
 ```
 
@@ -236,10 +246,12 @@ eas build --platform android --profile preview
 
 ## 🎤 Poin Kunci Tanya-Jawab (Persiapan Audit & Presentasi)
 
+- **Q: Bagaimana pemindaian multi-sudut (1–3 foto) meningkatkan akurasi tanpa membebani pengguna?**
+  > *Jawab:* Pengguna tetap dapat langsung memindai 1 foto daun/bunga seperti biasa. Namun jika tanaman memiliki daun yang mirip dengan spesies lain, pengguna dapat menambahkan hingga 2 foto tambahan (batang/ranting dan bunga/buah). Backend mengirimkan seluruh foto tersebut secara bersamaan ke **PlantNet** dan **Google Gemini 2.5 Flash** sehingga sistem mengunci satu spesies berdasarkan gabungan morfologi seluruh organ tumbuhan.
 - **Q: Bagaimana sistem mampu mendeteksi hingga 5 tanaman berbeda sekaligus dalam satu foto meskipun PlantNet dirancang untuk satu spesies?**
   > *Jawab:* Pada arsitektur Hybrid AI HerbalScan, PlantNet berperan memberikan 5 kandidat taksonomi untuk tanaman paling dominan di bingkai, sementara **Google Gemini 2.5 Flash** diinstruksikan memindai seluruh area foto untuk mengidentifikasi spesimen ke-2 hingga ke-5 secara mandiri serta mengembalikan koordinat spasial `box_2d` masing-masing. Aplikasi mobile kemudian merender kotak deteksi berwarna berbeda (`#1`–`#5`) agar pengguna dapat mengetuk tiap tanaman secara terpisah.
 - **Q: Bagaimana sistem menjaga akurasi pada foto non-HD serta mencegah AI menebak asal-asalan?**
-  > *Jawab:* Foto dari kamera maupun galeri dinormalisasi ke resolusi optimal (`1024px` di aplikasi, `800px` bicubic di server) sebelum dianalisis. Jika citra terlalu buram, gelap, atau bukan tumbuhan sehingga skor keyakinan di bawah ambang aman, sistem menolak pemindaian secara otomatis (`rejected`) alih-alih menghasilkan tebakan acak. Selain itu, lapisan *Botanical Guardrails* memastikan nama asing dinormalisasi ke nama populer Indonesia (seperti *Ficus racemosa* menjadi **Loa**).
+  > *Jawab:* Foto dari kamera maupun galeri dinormalisasi ke resolusi optimal (`1024px` untuk foto utama, `960px` untuk sudut tambahan) sebelum dianalisis. Jika citra terlalu buram, gelap, atau bukan tumbuhan sehingga skor keyakinan di bawah ambang aman, sistem menolak pemindaian secara otomatis (`rejected`) alih-alih menghasilkan tebakan acak. Selain itu, lapisan *Botanical Guardrails* mencegah salah identifikasi pada spesies mirip (*Anting Putri vs Melati Putih*, *Daun Dewa vs Jonghe*, *Loa*, *Sancang*).
 - **Q: Bagaimana HerbBOT menjaga akurasi informasi medis/keamanan dan tetap merespons cepat (< 1,5 detik)?**
   > *Jawab:* HerbBOT menyuntikkan data terkurasi dari database `herbals` (status toksisitas, cara pengolahan, takaran pakai, dan kontraindikasi) ke dalam *system instruction*, menonaktifkan *thinking budget* agar generasi teks dimulai seketika, merotasi *pool* API key secara acak, serta membedakan khasiat empiris dengan bukti ilmiah klinis.
 - **Q: Dari mana sumber referensi ilmiah pada filter "Berjurnal Ilmiah" berasal?**
