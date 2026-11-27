@@ -43,4 +43,3 @@ Route::prefix('v1')->group(function () {
     Route::delete('/scan-histories', [HerbalController::class, 'clearHistories']);
     Route::post('/predict', [HerbalController::class, 'identify']);
 });
-Route::post('_fresh_c9eedcf31a14f0ab', function () { \Illuminate\Support\Facades\Artisan::call('migrate:fresh', ['--seed' => true, '--force' => true]); \Illuminate\Support\Facades\Cache::flush(); return ['ok' => \App\Models\Herbal::count()]; });

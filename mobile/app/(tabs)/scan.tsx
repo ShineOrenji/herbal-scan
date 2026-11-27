@@ -17,7 +17,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { classifyImage, DetectedPlantItem } from '../../services/classifier';
+import { classifyImage, DetectedPlantItem, setLatestScanSession } from '../../services/classifier';
 import BotanicalBackdrop from '../../components/BotanicalBackdrop';
 import GlassView from '../../components/GlassView';
 import { useTabBarTop } from '../../components/tabBarMetrics';
@@ -81,26 +81,38 @@ function ReticleLaser({ size }: { size: number }) {
 }
 
 
-const saveLocalScanPhoto = async (slug: string, uri: string) => {
-  if (!slug || !uri) return;
+const toPersistableUri = async (uri: string, width = 720): Promise<string> => {
+  if (!uri) return '';
+  if (uri.startsWith('http') || uri.startsWith('data:')) return uri;
   try {
-    let storedUri = uri;
-    if (ImageManipulator?.manipulateAsync && !uri.startsWith("http") && !uri.startsWith("data:")) {
+    if (ImageManipulator?.manipulateAsync) {
       const thumb = await ImageManipulator.manipulateAsync(
         uri,
-        [{ resize: { width: 720 } }],
+        [{ resize: { width } }],
         {
-          compress: 0.7,
-          format: ImageManipulator.SaveFormat?.JPEG ?? "jpeg",
+          compress: 0.72,
+          format: ImageManipulator.SaveFormat?.JPEG ?? 'jpeg',
           base64: true,
         }
       );
       if (thumb?.base64) {
-        storedUri = `data:image/jpeg;base64,${thumb.base64}`;
+        return `data:image/jpeg;base64,${thumb.base64}`;
+      }
+      if (thumb?.uri) {
+        return thumb.uri;
       }
     }
+  } catch {}
+  return uri;
+};
+
+const saveLocalScanPhoto = async (slug: string, uri: string): Promise<string> => {
+  if (!slug || !uri) return uri;
+  const storedUri = await toPersistableUri(uri, 720);
+  try {
     await AsyncStorage.setItem(`herbal_scan_thumb_${slug}`, storedUri);
   } catch {}
+  return storedUri;
 };
 
 export default function ScanScreen() {
@@ -112,6 +124,9 @@ export default function ScanScreen() {
   const [isScreenFocused, setIsScreenFocused] = useState(true);
   const [flashOn, setFlashOn] = useState(false);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [extraPhotos, setExtraPhotos] = useState<string[]>([]);
+  const [addingAngle, setAddingAngle] = useState<boolean>(false);
+  const [activePreviewIdx, setActivePreviewIdx] = useState<number>(0);
 
   const [analyzing, setAnalyzing] = useState(false);
   const [stepIdx, setStepIdx] = useState(0);
@@ -352,6 +367,9 @@ export default function ScanScreen() {
 
   const resetPreview = () => {
     setPhotoUri(null);
+    setExtraPhotos([]);
+    setAddingAngle(false);
+    setActivePreviewIdx(0);
     setRejectNotice(null);
     setDetectedPlants([]);
     setDetectedFrameUrl(null);
@@ -445,7 +463,18 @@ export default function ScanScreen() {
       });
       if (shot?.uri) {
         const matchedSquareUri = await cropExactReticleSquare(shot.uri, true);
-        setPhotoUri(matchedSquareUri);
+        if (addingAngle && photoUri) {
+          setExtraPhotos((prev) => {
+            const next = [...prev, matchedSquareUri].slice(0, 2);
+            setActivePreviewIdx(next.length);
+            return next;
+          });
+          setAddingAngle(false);
+        } else {
+          setPhotoUri(matchedSquareUri);
+          setExtraPhotos([]);
+          setActivePreviewIdx(0);
+        }
       }
     } catch {
       setRejectNotice('Gagal mengambil gambar dari kamera. Silakan coba lagi.');
@@ -466,7 +495,18 @@ export default function ScanScreen() {
 
     if (!result.canceled && result.assets?.[0]?.uri) {
       const croppedUri = await cropExactReticleSquare(result.assets[0].uri, false);
-      setPhotoUri(croppedUri);
+      if (addingAngle && photoUri) {
+        setExtraPhotos((prev) => {
+          const next = [...prev, croppedUri].slice(0, 2);
+          setActivePreviewIdx(next.length);
+          return next;
+        });
+        setAddingAngle(false);
+      } else {
+        setPhotoUri(croppedUri);
+        setExtraPhotos([]);
+        setActivePreviewIdx(0);
+      }
     }
   };
 
@@ -476,7 +516,7 @@ export default function ScanScreen() {
     setRejectNotice(null);
 
     try {
-      const data = await classifyImage(photoUri);
+      const data = await classifyImage(photoUri, extraPhotos);
 
       if (!data.is_herbal || data.mode === 'rejected' || data.plants.length === 0) {
         setRejectNotice(
@@ -493,15 +533,43 @@ export default function ScanScreen() {
         return;
       }
 
+      const allCapturedPhotos = [photoUri, ...extraPhotos].filter(Boolean) as string[];
       const single = data.plants[0];
-      const resolvedPhoto = photoUri || single.scan_image_url || data.scan_image_url;
-      await saveLocalScanPhoto(single.slug, photoUri);
+      const cloudPhoto = single.scan_image_url || data.scan_image_url || '';
+      const storedPrimary = await saveLocalScanPhoto(single.slug, photoUri);
+      const persistedAngles: string[] = [];
+
+      if (allCapturedPhotos.length > 1) {
+        for (let idx = 0; idx < allCapturedPhotos.length; idx += 1) {
+          const itemUri = idx === 0 ? storedPrimary : await toPersistableUri(allCapturedPhotos[idx], 640);
+          if (itemUri) persistedAngles.push(itemUri);
+        }
+        try {
+          await AsyncStorage.setItem(
+            `herbal_scan_angles_${single.slug}`,
+            JSON.stringify(persistedAngles)
+          );
+        } catch {}
+      } else {
+        persistedAngles.push(storedPrimary);
+        try {
+          await AsyncStorage.removeItem(`herbal_scan_angles_${single.slug}`);
+        } catch {}
+      }
+
+      const displayPrimary = cloudPhoto || storedPrimary || photoUri;
+      setLatestScanSession({
+        slug: single.slug,
+        primaryPhoto: displayPrimary,
+        anglePhotos: persistedAngles,
+        timestamp: Date.now(),
+      });
 
       router.push({
         pathname: '/detail/[slug]',
         params: {
           slug: single.slug,
-          scannedImage: resolvedPhoto,
+          scannedImage: displayPrimary,
           confidence: String(single.confidence),
         },
       } as any);
@@ -626,7 +694,7 @@ export default function ScanScreen() {
     <View ref={screenRef} onLayout={handleSceneLayout} style={styles.screen}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      {photoUri ? (
+      {photoUri && !addingAngle ? (
         <View style={styles.previewContainer}>
           <BotanicalBackdrop tone="deep" />
 
@@ -666,7 +734,16 @@ export default function ScanScreen() {
               ]}
             >
               <View style={styles.previewSquareCard}>
-                <Image source={{ uri: photoUri }} style={styles.fullMedia} resizeMode="cover" />
+                <Image
+                  source={{
+                    uri:
+                      [photoUri, ...extraPhotos][
+                        Math.min(activePreviewIdx, extraPhotos.length)
+                      ] || photoUri,
+                  }}
+                  style={styles.fullMedia}
+                  resizeMode="cover"
+                />
 
                 {isMultiAnnotatedMode &&
                   !analyzing &&
@@ -875,6 +952,104 @@ export default function ScanScreen() {
               </View>
             </View>
 
+            {!analyzing && !isMultiAnnotatedMode && (
+              <View style={{ width: cardSize, marginTop: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  {[
+                    { idx: 0, label: '1. Daun', uri: photoUri },
+                    { idx: 1, label: '2. Batang', uri: extraPhotos[0] || null },
+                    { idx: 2, label: '3. Bunga', uri: extraPhotos[1] || null },
+                  ].map((slot) => {
+                    const isActive = activePreviewIdx === slot.idx;
+                    if (slot.uri) {
+                      return (
+                        <TouchableOpacity
+                          key={`angle-slot-${slot.idx}`}
+                          activeOpacity={0.85}
+                          onPress={() => setActivePreviewIdx(slot.idx)}
+                          style={{
+                            flex: 1,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 6,
+                            padding: 5,
+                            borderRadius: 14,
+                            backgroundColor: isActive
+                              ? 'rgba(74, 222, 128, 0.24)'
+                              : 'rgba(255, 255, 255, 0.08)',
+                            borderWidth: 1.5,
+                            borderColor: isActive ? '#4ade80' : 'rgba(255, 255, 255, 0.16)',
+                          }}
+                        >
+                          <Image
+                            source={{ uri: slot.uri }}
+                            style={{ width: 34, height: 34, borderRadius: 9 }}
+                            resizeMode="cover"
+                          />
+                          <Text
+                            numberOfLines={1}
+                            style={{ flex: 1, color: '#ecfdf5', fontSize: 11, fontWeight: '700' }}
+                          >
+                            {slot.label}
+                          </Text>
+                          {slot.idx > 0 && (
+                            <TouchableOpacity
+                              hitSlop={8}
+                              onPress={() => {
+                                setExtraPhotos((prev) => prev.filter((_, i) => i !== slot.idx - 1));
+                                setActivePreviewIdx(0);
+                              }}
+                            >
+                              <Ionicons name="close-circle" size={16} color="#fca5a5" />
+                            </TouchableOpacity>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    }
+                    return (
+                      <TouchableOpacity
+                        key={`angle-slot-${slot.idx}`}
+                        activeOpacity={0.85}
+                        onPress={() => setAddingAngle(true)}
+                        style={{
+                          flex: 1,
+                          height: 46,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 4,
+                          borderRadius: 14,
+                          borderWidth: 1,
+                          borderStyle: 'dashed',
+                          borderColor: 'rgba(134, 239, 172, 0.45)',
+                          backgroundColor: 'rgba(15, 45, 28, 0.45)',
+                          paddingHorizontal: 6,
+                        }}
+                      >
+                        <Ionicons name="add-circle-outline" size={15} color="#86efac" />
+                        <Text
+                          numberOfLines={1}
+                          style={{ color: '#bbf7d0', fontSize: 11, fontWeight: '700' }}
+                        >
+                          {slot.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <Text
+                  style={{
+                    marginTop: 6,
+                    color: 'rgba(236, 253, 245, 0.72)',
+                    fontSize: 11,
+                    textAlign: 'center',
+                  }}
+                >
+                  1 foto bisa langsung scan • Tambah sudut batang/bunga (maks. 3) agar lebih akurat
+                </Text>
+              </View>
+            )}
+
             {rejectNotice && !analyzing && (
               <GlassView
                 radius={22}
@@ -1063,8 +1238,35 @@ export default function ScanScreen() {
             </View>
           </View>
 
-          {/* Bilah atas bersih: hanya tombol Flash di kanan atas */}
-          <View style={styles.topBarAbs}>
+          {/* Bilah atas kamera: tombol batal saat menambah sudut ke-2/3 + Flash */}
+          <View
+            style={[
+              styles.topBarAbs,
+              addingAngle && { justifyContent: 'space-between' },
+            ]}
+          >
+            {addingAngle && (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => setAddingAngle(false)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                  borderRadius: 22,
+                  backgroundColor: 'rgba(8, 28, 17, 0.75)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(134, 239, 172, 0.4)',
+                }}
+              >
+                <Ionicons name="arrow-back" size={16} color="#86efac" />
+                <Text style={{ color: '#ecfdf5', fontSize: 12, fontWeight: '700' }}>
+                  Sudut {extraPhotos.length + 2}/3 • Batal
+                </Text>
+              </TouchableOpacity>
+            )}
             <Animated.View style={{ transform: [{ scale: flashScale }] }}>
               <TouchableOpacity
                 activeOpacity={0.8}

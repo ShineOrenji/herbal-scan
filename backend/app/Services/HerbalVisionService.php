@@ -10,7 +10,7 @@ use RuntimeException;
 
 class HerbalVisionService
 {
-    public function identifyPlant(string $imagePath, array $knownSpecies = []): array
+    public function identifyPlant(string $imagePath, array $knownSpecies = [], array $extraImagePaths = []): array
     {
         if (!file_exists($imagePath)) {
             throw new RuntimeException('File gambar tidak ditemukan di server.');
@@ -26,12 +26,27 @@ class HerbalVisionService
         $mimeType = $optimized['mime_type'];
         $rawBytes = $optimized['bytes'];
 
+        $extraOptimized = [];
+        foreach (array_slice($extraImagePaths, 0, 2) as $extraPath) {
+            if (is_string($extraPath) && file_exists($extraPath)) {
+                try {
+                    $extraOptimized[] = $this->prepareOptimizedImage($extraPath);
+                } catch (\Throwable) {
+                    // Lewati foto tambahan jika gagal dibaca
+                }
+            }
+        }
+
         $plantNetKeys = $this->resolvePlantNetKeys();
         $engineTag = empty($plantNetKeys) ? 'gemini_only' : 'hybrid_pn_gemini';
 
-        // Cache v6 dengan normalisasi nama lokal Indonesia & fokus objek jarak jauh
-        $normalizedHash = hash('sha256', $base64Image . '_' . $engineTag);
-        $cacheKey = "herbal_vision_pool_v28_{$normalizedHash}";
+        $hashSeed = $base64Image . '_' . $engineTag;
+        if (!empty($extraOptimized)) {
+            $extraHashPart = implode('_', array_map(fn ($e) => substr(hash('sha256', $e['data']), 0, 16), $extraOptimized));
+            $hashSeed = $base64Image . '_' . $extraHashPart . '_' . $engineTag;
+        }
+        $normalizedHash = hash('sha256', $hashSeed);
+        $cacheKey = "herbal_vision_pool_v30_{$normalizedHash}";
         $cached = Cache::get($cacheKey);
         if (is_array($cached) && !empty($cached['detected_plants'])) {
             return $cached;
@@ -39,7 +54,7 @@ class HerbalVisionService
 
         $plantNetCandidates = [];
         if (!empty($plantNetKeys)) {
-            $plantNetCandidates = $this->queryPlantNetCandidates($rawBytes, $mimeType, $plantNetKeys);
+            $plantNetCandidates = $this->queryPlantNetCandidates($rawBytes, $mimeType, $plantNetKeys, $extraOptimized);
         }
 
         $plantNetHint = '';
@@ -69,7 +84,9 @@ class HerbalVisionService
         $prompt = <<<PROMPT
 Anda adalah ahli taksonomi botani global, agronomi, dan etnofarmakologi. Tugas Anda mengidentifikasi spesies tumbuhan apa pun di dunia (tanaman herbal, tanaman buah, sayuran, tanaman hias, bonsai, maupun tumbuhan liar) secara presisi tinggi dalam kondisi dan sudut kamera apa pun. Kembalikan HANYA JSON valid.
 
-{$plantNetHint}{$knownHint}ATURAN PENAMAAN INDONESIA: Kolom common_name_id WAJIB memakai nama populer Bahasa Indonesia yang dikenal luas (contoh: Loa, Anggur, Sirih, Sambiloto). DILARANG memakai nama Inggris/asing (seperti Crattock, Cluster fig, Puero) atau nama Latin di common_name_id.
+{$plantNetHint}{$knownHint}ANALISIS MULTI-SUDUT (JIKA ADA >1 FOTO): Jika pengguna mengirimkan 2–3 foto dari spesimen yang sama (Foto 1: Daun/Utama, Foto 2: Batang/Ranting, Foto 3: Bunga/Buah), gabungkan seluruh ciri morfologi dari semua sudut tersebut (bulu halus batang, getah, susunan tangkai, bunga/buah) untuk mengunci satu spesies paling akurat.
+
+ATURAN PENAMAAN INDONESIA: Kolom common_name_id WAJIB memakai nama populer Bahasa Indonesia yang dikenal luas (contoh: Loa, Anggur, Sirih, Sambiloto). DILARANG memakai nama Inggris/asing (seperti Crattock, Cluster fig, Puero) atau nama Latin di common_name_id.
 
 ATURAN UTAMA ANTI-BIAS & PEMBACAAN SEGALA JARAK KAMERA:
 1. **Deteksi Single & Multi-Spesimen (1 hingga 5 Tanaman dalam 1 Bingkai)**:
@@ -82,6 +99,12 @@ ATURAN UTAMA ANTI-BIAS & PEMBACAAN SEGALA JARAK KAMERA:
   - **Bentuk & Lekukan Tepi Daun (`leaf_lobes_and_margin`)**: Periksa apakah berlekuk menjari (*palmately lobed* seperti Daun Tin *Ficus carica*, Anggur, Pepaya, Singkong) atau utuh tanpa lekukan (*unlobed* seperti Loa *Ficus racemosa*, Sancang *Premna*, Saeng Simbar *Serissa*, Hokianti *Ehretia*).
   - **Pola Pertulangan & Tekstur (`venation_and_surface`)**: Periksa tulang daun (menyirip, menjari, melengkung, sejajar) dan tekstur permukaan (mengilap, berbulu halus, berbintik putih mikro, atau tebal berdaging).
   - **Pembeda Spesies Mirip & Bonsai Populer (`lookalike_differentiation`)**:
+    - **Anting Putri (*Wrightia religiosa*) vs Melati Putih (*Jasminum sambac*)**:
+      - *Anting Putri (Wrightia religiosa / Water Jasmine)*: Perdu/bonsai berkayu dengan ranting cokelat-keabuan ramping, pasangan daun berhadapan kecil-lonjong berujung meruncing (sering berwarna hijau kekuningan/kuning emas pada kultivar varigata), tulang daun menyirip halus melengkung, serta bunga putih menggantung ke bawah. Jika cocok dengan ciri ini, identifikasi sebagai **Anting Putri (*Wrightia religiosa*)**, JANGAN diterjemahkan sebagai Melati Putih hanya karena nama Inggrisnya *Water Jasmine*.
+      - *Melati Putih (Jasminum sambac)*: Perdu merambat/setengah memanjat berbatang hijau berbulu halus, daun bulat telur lebar mengilap berujung tumpul/agak runcing dengan tulang daun melengkung menonjol, serta bunga putih bertumpuk tegak beraroma sangat wangi.
+    - **Daun Dewa (*Gynura divaricata*) vs Jonghe / Sintrong (*Crassocephalum crepidioides*)**:
+      - *Daun Dewa (Gynura divaricata)*: Bunga bonggol **tegak menghadap ke atas** berwarna kuning cerah hingga kuning-jingga; helai daun **tebal berdaging (semi-sukulen)** dengan permukaan berbulu halus beludru, batang berdaging sering bersemu ungu dan berumbi. Jika foto bunga tegak kuning-jingga atau batang/daun berdaging terlihat, pilih **Daun Dewa (*Gynura divaricata*)** (`is_toxic: false`), JANGAN terkecoh kandidat gulma *Crassocephalum crepidioides* dari Pl@ntNet.
+      - *Jonghe / Sintrong (Crassocephalum crepidioides)*: Bunga bonggol berbentuk tabung silindris yang **merunduk/menunduk ke bawah** dengan ujung merah bata/jingga kecokelatan; daun **tipis seperti kertas (tidak berdaging)** dengan tepi bergerigi tajam tidak beraturan dan batang lunak berongga tanpa umbi.
     - **Pepaya Muda (*Carica papaya*) vs Ginseng Jawa/Penyu (*Talinum paniculatum*)**:
       - *Pepaya (Carica papaya)*: Walau masih bibit/kecil, daun pepaya sudah berlekuk menjari (3–7 cuping menjari dengan tulang daun utama memancar pucat dari pangkal tangkai panjang berongga). JANGAN pernah mengidentifikasi daun pepaya muda sebagai Ginseng Penyu/Ginseng Jawa (yang daunnya kecil utuh tanpa lekukan, tebal berdaging seperti sendok).
     - **Kumis Kucing (*Orthosiphon aristatus*) vs Sembung/Jaka Tua (*Blumea balsamifera*)**:
@@ -170,15 +193,26 @@ PROMPT;
                 $payload = [
                     'contents' => [
                         [
-                            'parts' => [
-                                ['text' => $prompt],
+                            'parts' => array_merge(
                                 [
-                                    'inline_data' => [
-                                        'mime_type' => $mimeType,
-                                        'data' => $base64Image,
+                                    ['text' => $prompt],
+                                    [
+                                        'inline_data' => [
+                                            'mime_type' => $mimeType,
+                                            'data' => $base64Image,
+                                        ],
                                     ],
                                 ],
-                            ],
+                                array_map(
+                                    fn ($item) => [
+                                        'inline_data' => [
+                                            'mime_type' => $item['mime_type'],
+                                            'data' => $item['data'],
+                                        ],
+                                    ],
+                                    $extraOptimized
+                                )
+                            ),
                         ],
                     ],
                     'generationConfig' => $genConfig,
@@ -308,7 +342,7 @@ PROMPT;
         ];
     }
 
-    private function queryPlantNetCandidates(string $rawBytes, string $mimeType, array $plantNetKeys): array
+    private function queryPlantNetCandidates(string $rawBytes, string $mimeType, array $plantNetKeys, array $extraOptimized = []): array
     {
         $totalKeys = count($plantNetKeys);
         $startIndex = ((int) Cache::increment('herbal_plantnet_key_rr')) % $totalKeys;
@@ -324,15 +358,22 @@ PROMPT;
                 $url = 'https://my-api.plantnet.org/v2/identify/all?api-key=' . urlencode($pnKey)
                     . '&no-reject=true&lang=id';
 
-                $response = Http::withOptions([
+                $pending = Http::withOptions([
                     'force_ip_resolve' => 'v4',
                 ])
                     ->connectTimeout(3)
                     ->timeout(6)
-                    ->attach('images', $rawBytes, "specimen.{$ext}")
-                    ->post($url, [
-                        'organs' => 'auto',
-                    ]);
+                    ->attach('images', $rawBytes, "specimen_1.{$ext}");
+
+                foreach ($extraOptimized as $eIdx => $extraItem) {
+                    $eExt = str_contains($extraItem['mime_type'], 'png') ? 'png' : 'jpg';
+                    $pending = $pending->attach('images', $extraItem['bytes'], 'specimen_' . ($eIdx + 2) . ".{$eExt}");
+                }
+
+                $response = $pending->post(
+                    $url,
+                    empty($extraOptimized) ? ['organs' => 'auto'] : []
+                );
 
                 if ($response->successful()) {
                     $results = $response->json('results');

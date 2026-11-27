@@ -20,11 +20,30 @@ export interface ClassificationResponse {
   plants: DetectedPlantItem[];
 }
 
+export interface LatestScanSession {
+  slug: string;
+  primaryPhoto: string;
+  anglePhotos: string[];
+  timestamp: number;
+}
+
+let latestScanSession: LatestScanSession | null = null;
+
+export function setLatestScanSession(session: LatestScanSession | null): void {
+  latestScanSession = session;
+}
+
+export function getLatestScanSession(slug?: string): LatestScanSession | null {
+  if (!latestScanSession) return null;
+  if (slug && latestScanSession.slug !== slug) return null;
+  return latestScanSession;
+}
+
 function resolveBaseUrl(): string {
   if (typeof ApiModule.BASE_URL === 'string' && ApiModule.BASE_URL.startsWith('http')) {
     return ApiModule.BASE_URL.replace(/\/+$/, '');
   }
-  return 'http://10.188.133.63:8000/api/v1';
+  return 'http://10.58.220.63:8000/api/v1';
 }
 
 function buildTargetUrls(baseUrl: string): string[] {
@@ -59,10 +78,14 @@ function buildFormData(
   fieldName: string,
   uri: string,
   name: string,
-  type: string
+  type: string,
+  extraFiles: { uri: string; name: string; type: string }[] = []
 ): FormData {
   const formData = new FormData();
   formData.append(fieldName, { uri, name, type } as any);
+  for (const extra of extraFiles) {
+    formData.append('images[]', extra as any);
+  }
   return formData;
 }
 
@@ -101,7 +124,10 @@ function uploadFormData(
   });
 }
 
-export async function classifyImage(rawImageUri: string): Promise<ClassificationResponse> {
+export async function classifyImage(
+  rawImageUri: string,
+  extraImageUris: string[] = []
+): Promise<ClassificationResponse> {
   let imageUri = rawImageUri;
   try {
     const manipulated = await ImageManipulator.manipulateAsync(
@@ -130,13 +156,38 @@ export async function classifyImage(rawImageUri: string): Promise<Classification
   const ext = match ? match[1].toLowerCase() : 'jpg';
   const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
 
+  const extraFiles: { uri: string; name: string; type: string }[] = [];
+  for (let i = 0; i < Math.min(2, extraImageUris.length); i += 1) {
+    let extraUri = extraImageUris[i];
+    if (!extraUri) continue;
+    try {
+      const mExtra = await ImageManipulator.manipulateAsync(
+        extraUri,
+        [{ resize: { width: 960 } }],
+        { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
+      );
+      if (mExtra?.uri) extraUri = mExtra.uri;
+    } catch {}
+    const normExtra =
+      Platform.OS === 'android' &&
+      !extraUri.startsWith('file://') &&
+      !extraUri.startsWith('content://')
+        ? `file://${extraUri}`
+        : extraUri;
+    extraFiles.push({
+      uri: normExtra,
+      name: `specimen-angle-${i + 2}-${Date.now()}.jpg`,
+      type: 'image/jpeg',
+    });
+  }
+
   let notFoundCount = 0;
 
   for (const url of targetUrls) {
     try {
       let { status, text } = await uploadFormData(
         url,
-        buildFormData('image', normalizedUri, filename, mimeType),
+        buildFormData('image', normalizedUri, filename, mimeType, extraFiles),
         90000
       );
 
