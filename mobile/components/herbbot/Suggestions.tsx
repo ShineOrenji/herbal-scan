@@ -62,7 +62,7 @@ export function SuggestionChips({ items, onPick }: SuggestionProps) {
 }
 
 const styles = StyleSheet.create({
-  listWrap: { gap: 8, marginTop: 8 },
+  listWrap: { gap: 8 },
   listTitle: {
     color: C.textSoft,
     fontSize: 12,

@@ -33,7 +33,7 @@ export default function GlassIconButton({
         danger && styles.danger,
       ]}
     >
-      <Ionicons name={icon} size={18} color={danger ? HB.danger : active ? C.white : C.mint} />
+      <Ionicons name={icon} size={Math.round(size * 0.5)} color={danger ? HB.danger : active ? C.white : C.mint} />
     </TouchableOpacity>
   );
 }

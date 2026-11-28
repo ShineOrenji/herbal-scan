@@ -1,11 +1,11 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import BotAvatar from './BotAvatar';
+import UserAvatar from './UserAvatar';
 import RichMessageBody from './RichMessageBody';
 import { ChatBubble } from './types';
 import { C, HB, glass } from './theme';
-import {Image,
-  ImageSourcePropType,} from 'react-native';
 
 interface MessageBubbleProps {
   msg: ChatBubble;
@@ -13,26 +13,15 @@ interface MessageBubbleProps {
   onRetry?: () => void;
 }
 
-const BOT_AVATAR_SOURCE: ImageSourcePropType | null = require('../../assets/herbbot-2.png');
-
-export function BotAvatar({ error }: { error?: boolean }) {
-  return (
-    <View style={[styles.avatar, error && styles.avatarError]}>
-      {BOT_AVATAR_SOURCE ? (
-                <Image source={BOT_AVATAR_SOURCE} style={styles.avatarImg} resizeMode="cover" />
-              ) : (
-                <Ionicons name="sparkles" size={26} color={C.white} />
-              )}
-    </View>
-  );
-}
+const AVATAR = 30;
 
 export default function MessageBubble({ msg, onLongPress, onRetry }: MessageBubbleProps) {
   const isUser = msg.role === 'user';
 
   return (
     <View style={[styles.row, isUser ? styles.rowUser : styles.rowBot]}>
-      {!isUser && <BotAvatar error={msg.isError} />}
+
+      {!isUser && <BotAvatar size={AVATAR} error={msg.isError} />}
 
       <Pressable
         onLongPress={onLongPress}
@@ -55,33 +44,19 @@ export default function MessageBubble({ msg, onLongPress, onRetry }: MessageBubb
           </TouchableOpacity>
         )}
       </Pressable>
+      
+      {/* Nyalakan agar ada avatarnya profilenya di samping bubble chat */}
+      {/* {isUser && <UserAvatar size={AVATAR} />} */}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  avatarImg: {
-    width: 40,
-    height: 40,
-  },
-  
   row: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
   rowUser: { justifyContent: 'flex-end' },
   rowBot: { justifyContent: 'flex-start' },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarError: {
-    backgroundColor: HB.dangerTint,
-    borderWidth: 1,
-    borderColor: HB.dangerBorder,
-  },
   bubble: {
-    maxWidth: '80%',
+    maxWidth: '78%',
     paddingHorizontal: 15,
     paddingVertical: 11,
   },

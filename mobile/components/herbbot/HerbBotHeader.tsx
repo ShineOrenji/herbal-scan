@@ -1,12 +1,9 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import GlassIconButton from './GlassIconButton';
-import { C, HB, glass } from './theme';
-import {Image,
-  ImageSourcePropType,} from 'react-native';
-
-const BOT_AVATAR_SOURCE: ImageSourcePropType | null = require('../../assets/herbbot.png');
+import BotAvatar from './BotAvatar';
+import { C, HB } from './theme';
 
 interface HerbBotHeaderProps {
   plantName?: string;
@@ -21,6 +18,9 @@ interface HerbBotHeaderProps {
   onClose: () => void;
 }
 
+const BTN = 38;
+
+/** Heading disamakan dengan header Beranda: logo + teks brand mint di kiri, tombol lingkaran glass di kanan. */
 export default function HerbBotHeader({
   plantName,
   isToxic,
@@ -37,14 +37,10 @@ export default function HerbBotHeader({
 
   return (
     <View style={styles.header}>
-      {BOT_AVATAR_SOURCE ? (
-                <Image source={BOT_AVATAR_SOURCE} style={styles.avatarImg} resizeMode="cover" />
-              ) : (
-                <Ionicons name="sparkles" size={26} color={C.white} />
-              )}
+      <BotAvatar size={46} variant="header" />
 
       <View style={styles.titleCol}>
-        <Text style={styles.title}>{historyOpen ? 'Riwayat' : 'HerbBOT'}</Text>
+        <Text style={styles.brand}>{historyOpen ? 'Riwayat Konsultasi' : 'HerbBOT'}</Text>
         <View style={styles.subRow}>
           {warn && <Ionicons name="warning" size={11} color={HB.danger} />}
           <Text style={[styles.sub, warn && { color: HB.danger }]} numberOfLines={1}>
@@ -53,89 +49,38 @@ export default function HerbBotHeader({
         </View>
       </View>
 
-      {/* Beranda: Chat baru + Riwayat dalam satu kapsul kaca */}
       {isAuthenticated && !isPlantMode && (
-        <View style={styles.capsule}>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Chat baru"
-            style={styles.capsuleBtn}
-            onPress={onNewChat}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="create-outline" size={18} color={C.mint} />
-          </TouchableOpacity>
-          <View style={styles.capsuleDivider} />
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Riwayat percakapan"
-            style={[styles.capsuleBtn, historyOpen && styles.capsuleBtnActive]}
+        <>
+          <GlassIconButton icon="create-outline" label="Chat baru" size={BTN} onPress={onNewChat} />
+          <GlassIconButton
+            icon="time-outline"
+            label="Riwayat percakapan"
+            size={BTN}
+            active={historyOpen}
             onPress={onToggleHistory}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="time-outline" size={18} color={historyOpen ? C.white : C.mint} />
-          </TouchableOpacity>
-        </View>
+          />
+        </>
       )}
 
-      {/* Detail tanaman: hanya tombol reset */}
       {isAuthenticated && isPlantMode && canReset && (
-        <GlassIconButton icon="refresh" label="Reset percakapan" danger onPress={onReset} />
+        <GlassIconButton icon="refresh" label="Reset percakapan" size={BTN} danger onPress={onReset} />
       )}
 
-      <GlassIconButton icon="close" label="Tutup" onPress={onClose} />
+      <GlassIconButton icon="close" label="Tutup" size={BTN} onPress={onClose} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  avatarImg: {
-    width: 60,
-    height: 60,
-  },
-
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     paddingHorizontal: 16,
     paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: HB.hairline,
   },
-  badge: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: C.emerald,
-    borderWidth: 1,
-    borderColor: 'rgba(187, 247, 208, 0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: C.emerald,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  titleCol: { flex: 1 },
-  title: { color: C.white, fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
+  titleCol: { flex: 1, marginLeft: 2 },
+  brand: { color: C.mint, fontSize: 15, fontWeight: '700' },
   subRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 },
   sub: { flexShrink: 1, color: C.textSoft, fontSize: 12, fontWeight: '600' },
-  capsule: {
-    ...glass,
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 36,
-    borderRadius: 18,
-    overflow: 'hidden',
-  },
-  capsuleBtn: {
-    width: 40,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  capsuleBtnActive: { backgroundColor: C.emerald },
-  capsuleDivider: { width: StyleSheet.hairlineWidth, height: 16, backgroundColor: HB.hairline },
 });

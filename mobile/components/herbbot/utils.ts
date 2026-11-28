@@ -19,3 +19,17 @@ export function sanitizeDisplayText(raw: string): string {
   }
   return trimmed.replace(/<<<SUGGESTIONS>>>[\s\S]*$/g, '').trim();
 }
+
+/** Teks polos tanpa simbol markdown (**tebal**, *miring*, ### judul) — untuk preview & bagikan teks */
+export function stripMarkdown(raw: string): string {
+  return sanitizeDisplayText(raw)
+    .replace(/`([^`\n]+)`/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/\*\*\*([^*\n]+)\*\*\*/g, '$1')
+    .replace(/\*\*([^*\n]+)\*\*/g, '$1')
+    .replace(/\*([^*\n]+)\*/g, '$1')
+    .replace(/^[\-\*]\s+/gm, '• ')
+    .replace(/\*/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}

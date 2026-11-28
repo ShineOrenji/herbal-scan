@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
-import { BotAvatar } from './MessageBubble';
+import BotAvatar from './BotAvatar';
 import { C, glass } from './theme';
 
 const STEP = 300;
@@ -27,7 +27,7 @@ function Dot({ offset }: { offset: number }) {
 export default function TypingIndicator() {
   return (
     <View style={styles.row}>
-      <BotAvatar />
+      <BotAvatar size={30} />
       <View style={styles.bubble}>
         <Dot offset={0} />
         <Dot offset={STEP / 2} />

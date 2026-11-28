@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   askHerbBotApi,
@@ -18,6 +17,10 @@ interface Options {
   plant?: HerbalDetail | null;
 }
 
+/**
+ * Seluruh state & pemanggilan API HerbBOT ada di sini.
+ * `messages` hanya berisi percakapan asli — sapaan ditampilkan terpisah (EmptyChat) di tengah layar.
+ */
 export function useHerbBotChat({ visible, plant }: Options) {
   const { user, token } = useAuth();
   const isAuthenticated = Boolean(user && token);
@@ -41,45 +44,17 @@ export function useHerbBotChat({ visible, plant }: Options) {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [sending, setSending] = useState(false);
   const sendingRef = useRef(false);
+  // Naik setiap kali satu thread selesai dimuat (untuk scroll instan ke pesan terbaru)
   const [threadVersion, setThreadVersion] = useState(0);
 
-  const getCacheKey = useCallback(
-    (overrideSessionId?: number) => {
-      const uid = user?.id ?? 'guest';
-      if (isPlantMode && plant?.slug) {
-        return `@herbbot_thread_${uid}_plant_${plant.slug}`;
-      }
-      const sid = overrideSessionId ?? sessionRef.current ?? 'latest';
-      return `@herbbot_thread_${uid}_general_${sid}`;
-    },
-    [user?.id, isPlantMode, plant?.slug]
-  );
-
-  const saveLocalCache = useCallback(
-    async (msgs: ChatBubble[], overrideSessionId?: number) => {
-      try {
-        const cleanMsgs = msgs.filter((m) => m.id !== 'welcome' && !m.isError);
-        await AsyncStorage.setItem(getCacheKey(overrideSessionId), JSON.stringify(cleanMsgs));
-      } catch {
-        // abaikan error storage
-      }
-    },
-    [getCacheKey]
-  );
-
-  const readLocalCache = useCallback(
-    async (overrideSessionId?: number): Promise<ChatBubble[]> => {
-      try {
-        const raw = await AsyncStorage.getItem(getCacheKey(overrideSessionId));
-        if (!raw) return [];
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        return [];
-      }
-    },
-    [getCacheKey]
-  );
+  // ---------- Sapaan (ditampilkan di tengah layar, bukan sebagai bubble) ----------
+  const firstName = user?.name ? user.name.trim().split(' ')[0] : '';
+  const welcome = {
+    greeting: firstName ? `Halo, ${firstName}!` : 'Halo!',
+    subtitle: plant
+      ? `Saya HerbBOT, asisten botani Anda. Tanyakan apa saja tentang ${plant.name} (${plant.scientific_name}): cara pengolahan, takaran aman, kontraindikasi, hingga perawatannya.`
+      : 'Saya HerbBOT, asisten edukasi tanaman herbal Anda. Tanyakan khasiat, cara meracik yang aman, atau perbandingan antar spesies herbal.',
+  };
 
   const buildSuggestions = (): string[] => {
     if (!plant) {
@@ -103,84 +78,28 @@ export function useHerbBotChat({ visible, plant }: Options) {
     ];
   };
 
-  const buildWelcome = (): ChatBubble => {
-    const firstName = user?.name ? ` ${user.name.split(' ')[0]}` : '';
-    return {
-      id: 'welcome',
-      role: 'assistant',
-      text: plant
-        ? `Halo${firstName}! Saya **HerbBOT**, asisten botani Anda.\n\nSaya sudah mempelajari profil lengkap **${plant.name}** (*${plant.scientific_name}*). Silakan tanyakan cara pengolahan, takaran aman, kontraindikasi, atau perawatannya.`
-        : `Halo${firstName}! Saya **HerbBOT**, asisten edukasi tanaman herbal Anda.\n\nTanyakan khasiat tumbuhan obat, cara meracik yang aman, atau perbandingan antar spesies herbal.`,
-    };
-  };
+  // Disimpan di ref agar perubahan nama user tidak memicu fetch ulang
+  const builders = useRef({ buildSuggestions });
+  builders.current = { buildSuggestions };
 
-  const builders = useRef({ buildSuggestions, buildWelcome });
-  builders.current = { buildSuggestions, buildWelcome };
-
+  // ---------- Setiap modal dibuka: MULAI DARI AWAL (tidak melanjutkan chat sebelumnya) ----------
+  // Chat lama tetap tersimpan & bisa dibuka lewat tombol Riwayat.
   useEffect(() => {
     if (!visible || !isAuthenticated) return;
-    let cancelled = false;
-    const { buildSuggestions: sugg, buildWelcome: welcome } = builders.current;
+    setSessionId(undefined);
+    setMessages([]);
+    setSuggestions(builders.current.buildSuggestions());
+    setLoadingThread(false);
+    setThreadVersion((v) => v + 1);
+  }, [visible, isAuthenticated, isPlantMode, plant?.slug, setSessionId]);
 
-    setSuggestions(sugg());
-    setLoadingThread(true);
-
-    (async () => {
-      const cached = await readLocalCache();
-      if (!cancelled && cached.length > 0) {
-        setMessages([welcome(), ...cached]);
-        setLoadingThread(false);
-        setThreadVersion((v) => v + 1);
-      }
-
-      let next: ChatBubble[] = cached.length > 0 ? [welcome(), ...cached] : [welcome()];
-      try {
-        if (isPlantMode && plant?.slug) {
-          const data = await getHerbBotThreadApi({ plant_slug: plant.slug });
-          if (cancelled) return;
-          setSessionId(data.session?.id);
-          if (data.messages.length > 0 || cached.length === 0) {
-            next = [welcome(), ...data.messages];
-            await saveLocalCache(next);
-          }
-        } else {
-          const list = await getHerbBotSessionsApi();
-          if (cancelled) return;
-          setSessions(list);
-          if (list.length > 0) {
-            const target = sessionRef.current
-              ? list.find((s) => s.id === sessionRef.current) ?? list[0]
-              : list[0];
-            const thread = await getHerbBotThreadApi({ session_id: target.id });
-            if (cancelled) return;
-            setSessionId(target.id);
-            next = [welcome(), ...thread.messages];
-            await saveLocalCache(next, target.id);
-            await saveLocalCache(next, undefined);
-          }
-        }
-      } catch {
-        if (cancelled) return;
-      }
-
-      if (!cancelled) {
-        setMessages(next);
-        setLoadingThread(false);
-        setThreadVersion((v) => v + 1);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [visible, isAuthenticated, isPlantMode, plant?.slug, setSessionId, readLocalCache, saveLocalCache]);
-
+  // ---------- Riwayat ----------
   const loadHistory = useCallback(async () => {
     setLoadingHistory(true);
     try {
       setSessions(await getHerbBotSessionsApi());
     } catch {
-      // abaikan
+      // abaikan; daftar lama tetap tampil
     } finally {
       setLoadingHistory(false);
     }
@@ -192,77 +111,57 @@ export function useHerbBotChat({ visible, plant }: Options) {
       try {
         const thread = await getHerbBotThreadApi({ session_id: target.id });
         setSessionId(target.id);
-        const next = [builders.current.buildWelcome(), ...thread.messages];
-        setMessages(next);
+        setMessages(thread.messages);
         setSuggestions(builders.current.buildSuggestions());
-        await saveLocalCache(next, target.id);
-        await saveLocalCache(next, undefined);
       } catch {
-        // tetap di sesi sebelumnya
+        // tetap di percakapan sebelumnya
       } finally {
         setLoadingThread(false);
         setThreadVersion((v) => v + 1);
       }
     },
-    [setSessionId, saveLocalCache]
+    [setSessionId]
   );
 
   const startNewChat = useCallback(() => {
     if (sendingRef.current) return;
     setSessionId(undefined);
-    const fresh = [builders.current.buildWelcome()];
-    setMessages(fresh);
+    setMessages([]);
     setSuggestions(builders.current.buildSuggestions());
     setThreadVersion((v) => v + 1);
-    saveLocalCache([], undefined);
-  }, [setSessionId, saveLocalCache]);
+  }, [setSessionId]);
 
+  // ---------- Aksi yang boleh melempar error (dipakai dialog konfirmasi) ----------
   const resetPlantChat = useCallback(async () => {
     if (!plant?.slug) return;
     await resetPlantHerbBotApi(plant.slug);
     setSessionId(undefined);
-    setMessages([builders.current.buildWelcome()]);
+    setMessages([]);
     setSuggestions(builders.current.buildSuggestions());
-    await saveLocalCache([]);
-  }, [plant?.slug, setSessionId, saveLocalCache]);
+  }, [plant?.slug, setSessionId]);
 
   const deleteSession = useCallback(
     async (target: HerbBotSessionSummary) => {
       await deleteHerbBotSessionApi(target.id);
       setSessions((prev) => prev.filter((s) => s.id !== target.id));
-      await AsyncStorage.removeItem(getCacheKey(target.id)).catch(() => {});
       if (sessionRef.current === target.id) {
         setSessionId(undefined);
-        setMessages([builders.current.buildWelcome()]);
-        await saveLocalCache([], undefined);
+        setMessages([]);
       }
     },
-    [setSessionId, getCacheKey, saveLocalCache]
+    [setSessionId]
   );
 
-  const deleteMessage = useCallback(
-    async (id: number) => {
-      await deleteHerbBotMessageApi(id);
-      setMessages((prev) => {
-        const updated = prev.filter((m) => m.id !== id);
-        saveLocalCache(updated);
-        return updated;
-      });
-    },
-    [saveLocalCache]
-  );
+  const deleteMessage = useCallback(async (id: number) => {
+    await deleteHerbBotMessageApi(id);
+    setMessages((prev) => prev.filter((m) => m.id !== id));
+  }, []);
 
-  const removeLocalMessage = useCallback(
-    (id: string | number) => {
-      setMessages((prev) => {
-        const updated = prev.filter((m) => m.id !== id);
-        saveLocalCache(updated);
-        return updated;
-      });
-    },
-    [saveLocalCache]
-  );
+  const removeLocalMessage = useCallback((id: string | number) => {
+    setMessages((prev) => prev.filter((m) => m.id !== id));
+  }, []);
 
+  // ---------- Kirim pesan ----------
   const send = useCallback(
     async (text: string) => {
       const clean = text.trim();
@@ -274,42 +173,18 @@ export function useHerbBotChat({ visible, plant }: Options) {
       setMessages((prev) => [...prev, { id: tempId, role: 'user', text: clean }]);
 
       try {
-        let res: Awaited<ReturnType<typeof askHerbBotApi>> | null = null;
-        let lastErr: any = null;
-        for (let attempt = 0; attempt < 2; attempt++) {
-          try {
-            res = await askHerbBotApi({
-              message: clean,
-              plant_slug: plant?.slug,
-              session_id: isPlantMode ? undefined : sessionRef.current,
-            });
-            break;
-          } catch (e: any) {
-            lastErr = e;
-            const status = e?.response?.status;
-            if (status === 401 || status === 422 || attempt === 1) {
-              throw e;
-            }
-          }
-        }
-        if (!res) throw lastErr;
-
-        const activeSid = res.session?.id ?? sessionRef.current;
+        const res = await askHerbBotApi({
+          message: clean,
+          plant_slug: plant?.slug,
+          session_id: isPlantMode ? undefined : sessionRef.current,
+        });
         if (res.session?.id) setSessionId(res.session.id);
 
-        setMessages((prev) => {
-          const updated = [
-            ...prev.filter((m) => m.id !== tempId),
-            res.user_message,
-            res.assistant_message,
-          ];
-          saveLocalCache(updated, activeSid);
-          if (!isPlantMode) {
-            saveLocalCache(updated, undefined);
-          }
-          return updated;
-        });
-
+        setMessages((prev) => [
+          ...prev.filter((m) => m.id !== tempId),
+          res.user_message,
+          res.assistant_message,
+        ]);
         if (Array.isArray(res.suggestions) && res.suggestions.length > 0) {
           setSuggestions(res.suggestions);
         }
@@ -333,7 +208,7 @@ export function useHerbBotChat({ visible, plant }: Options) {
         setSending(false);
       }
     },
-    [isAuthenticated, isPlantMode, plant?.slug, setSessionId, saveLocalCache]
+    [isAuthenticated, isPlantMode, plant?.slug, setSessionId]
   );
 
   const retry = useCallback(
@@ -351,6 +226,7 @@ export function useHerbBotChat({ visible, plant }: Options) {
     isAuthenticated,
     isPlantMode,
     isToxic,
+    welcome,
     sessionId,
     messages,
     suggestions,

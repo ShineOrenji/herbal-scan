@@ -77,7 +77,11 @@ export default function HerbalDetailScreen() {
   const confidence = Array.isArray(params.confidence)
     ? params.confidence[0]
     : params.confidence;
-  const initialSession = slug ? getLatestScanSession(slug) : null;
+  const isFromScanOrHistory = Boolean(
+    rawScannedImage || params.scannedImages || confidence
+  );
+  const initialSession =
+    slug && isFromScanOrHistory ? getLatestScanSession(slug) : null;
   const [localScanUri, setLocalScanUri] = useState<string | undefined>(
     initialSession?.primaryPhoto
   );
@@ -88,6 +92,15 @@ export default function HerbalDetailScreen() {
 
   useEffect(() => {
     let active = true;
+    if (!isFromScanOrHistory) {
+      setLocalScanUri(undefined);
+      setAnglePhotos([]);
+      setSelectedAngleIdx(0);
+      return () => {
+        active = false;
+      };
+    }
+
     const rawListParam = Array.isArray(params.scannedImages)
       ? params.scannedImages[0]
       : params.scannedImages;
@@ -142,7 +155,7 @@ export default function HerbalDetailScreen() {
     return () => {
       active = false;
     };
-  }, [slug, rawScannedImage, params.scannedImages, confidence]);
+  }, [slug, rawScannedImage, params.scannedImages, confidence, isFromScanOrHistory]);
 
   const initialCached = slug ? getCachedHerbalBySlug(slug) : null;
   const [herbal, setHerbal] = useState<HerbalDetail | null>(initialCached);
@@ -661,7 +674,7 @@ function DetailBody({
                     catalogPhotoUri && (!activeUserPhoto || catalogPhotoUri !== activeUserPhoto)
                   );
 
-                  if (!showUserCard && !showCatalogCard) return null;
+                  if (!showUserCard) return null;
 
                   return (
                     <GlassView radius={26} intensity={32} contentStyle={styles.blockInner}>

@@ -18,6 +18,7 @@ import * as ClassifierModule from '../../services/classifier';
 import { HerbalItem } from '../../types/herbal';
 import BotanicalBackdrop from '../../components/BotanicalBackdrop';
 import HerbBotModal from '../../components/HerbBotModal';
+import HerbBotBanner from '../../components/HerbBotBanner';
 import {
   C,
   R,
@@ -26,12 +27,8 @@ import {
   glass,
 } from '../../constants/herbalTheme';
 import AntDesign from '@expo/vector-icons/AntDesign';
-import {ImageSourcePropType} from 'react-native';
 
 type FilterCategory = 'all' | 'safe' | 'toxic' | 'leaf' | 'journal';
-
-// Logo HerbBOT
-const BOT_AVATAR_SOURCE: ImageSourcePropType | null = require('../../assets/herbbot.png');
 
 function deepExtractArray(raw: any, depth = 0): any[] {
   if (!raw || depth > 4) return [];
@@ -322,7 +319,7 @@ export default function HomeScreen() {
           <View style={styles.brandRow}>
             <Image source={HERBAL_LOGO} resizeMode="contain" style={styles.logoImg} />
 
-            <Text style={styles.brandText}>Herbal<Text style={styles.brandTitleBold}>Scan</Text> Botani</Text>
+            <Text style={styles.brandText}>HerbalScan Botani</Text>
           </View>
 
           <TouchableOpacity
@@ -390,44 +387,7 @@ export default function HomeScreen() {
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          activeOpacity={0.88}
-          style={[
-            styles.wideCard,
-            {
-              marginBottom: 18,
-              borderColor: "rgba(134, 239, 172, 0.38)",
-              ...glass,
-            },
-          ]}
-          onPress={() => setBotVisible(true)}
-        >
-          <View style={styles.wideTextCol}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
-              <Text style={styles.wideTitle}>Tanya HerbBOT AI</Text>
-              <View
-                style={{
-                  backgroundColor: "#4ade80",
-                  paddingHorizontal: 7,
-                  paddingVertical: 1.5,
-                  borderRadius: 6,
-                }}
-              >
-                <Text style={{ color: "#052212", fontSize: 9.5, fontWeight: "800" }}>AI</Text>
-              </View>
-            </View>
-            <Text style={styles.wideSub}>
-              Konsultasi khasiat tanaman, cara pengolahan aman, dan perbandingan herbal secara interaktif.
-            </Text>
-          </View>
-
-          {/* Logo HerbBOT di kanan — ganti ikon di dalam View ini dengan <Image source={...} /> jika ilustrasi sudah siap */}
-          {BOT_AVATAR_SOURCE ? (
-          <Image source={BOT_AVATAR_SOURCE} style={styles.avatarImg} resizeMode="cover" />
-        ) : (
-          <Ionicons name="sparkles" size={26} color={C.white} />
-        )}
-        </TouchableOpacity>
+        <HerbBotBanner onPress={() => setBotVisible(true)} />
 
         {/* CTA utama */}
         <TouchableOpacity
@@ -458,7 +418,7 @@ export default function HomeScreen() {
                   <TouchableOpacity
                     key={`feat-${item.slug || idx}`}
                     activeOpacity={0.88}
-                    style={styles.featuredCard}
+                    style={[styles.featuredCard, badge.toxic && styles.featuredCardToxic]}
                     onPress={() =>
                       router.push({
                         pathname: '/detail/[slug]',
@@ -496,7 +456,7 @@ export default function HomeScreen() {
                     <Text style={styles.featuredName} numberOfLines={1}>
                       {item.name}
                     </Text>
-                    <Text style={styles.featuredLatin} numberOfLines={1}>
+                    <Text style={[styles.featuredLatin, badge.toxic && { color: '#fecaca' }]} numberOfLines={1}>
                       {item.scientific_name}
                     </Text>
                   </TouchableOpacity>
@@ -587,7 +547,7 @@ export default function HomeScreen() {
                 <TouchableOpacity
                   key={item.slug || String(item.id ?? idx)}
                   activeOpacity={0.86}
-                  style={styles.plantGlassCard}
+                  style={[styles.plantGlassCard, badge.toxic && styles.plantGlassCardToxic]}
                   onPress={() =>
                     router.push({
                       pathname: '/detail/[slug]',
@@ -641,7 +601,7 @@ export default function HomeScreen() {
                       )}
                     </View>
 
-                    <Text style={styles.plantScientific} numberOfLines={1}>
+                    <Text style={[styles.plantScientific, badge.toxic && { color: '#fecaca' }]} numberOfLines={1}>
                       {item.scientific_name}
                     </Text>
 
@@ -668,13 +628,6 @@ const styles = StyleSheet.create({
 
   logoImg: { width: 50, height: 50 },
 
-  avatarImg: {
-    width: 100,
-    height: 100,
-    ...glass,
-    borderRadius: '100%',
-  },
-
   scrollContent: {
     paddingTop: SCREEN_TOP_PAD,
     paddingHorizontal: 20,
@@ -696,7 +649,6 @@ const styles = StyleSheet.create({
     ...glass,
   },
   brandText: { color: C.mint, fontSize: 14.5, fontWeight: '700' },
-  brandTitleBold: { fontWeight: '800', color: C.leaf },
   glassIconCircle: {
     width: 40,
     height: 40,
@@ -842,6 +794,11 @@ const styles = StyleSheet.create({
     position: 'relative',
     ...glass,
   },
+  featuredCardToxic: {
+    backgroundColor: 'rgba(185, 28, 28, 0.36)',
+    borderColor: 'rgba(248, 113, 113, 0.72)',
+    borderWidth: 1.2,
+  },
   featuredImg: {
     width: '100%',
     height: 108,
@@ -942,6 +899,11 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     padding: 12,
     ...glass,
+  },
+  plantGlassCardToxic: {
+    backgroundColor: 'rgba(185, 28, 28, 0.34)',
+    borderColor: 'rgba(248, 113, 113, 0.70)',
+    borderWidth: 1.2,
   },
   plantCardContent: { flex: 1, gap: 3 },
   plantCardTopRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },

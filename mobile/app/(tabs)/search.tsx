@@ -46,7 +46,6 @@ const FILTER_DEFINITIONS: {
   icon: keyof typeof Ionicons.glyphMap;
 }[] = [
   { key: 'semua', label: 'Semua', icon: 'apps-outline' },
-  { key: 'terkurasi', label: 'Terkurasi', icon: 'checkmark-done-circle-outline' },
   { key: 'daun', label: 'Daun', icon: 'leaf-outline' },
   { key: 'rimpang', label: 'Rimpang & Akar', icon: 'flower-outline' },
   { key: 'buah_bunga', label: 'Buah & Bunga', icon: 'rose-outline' },
@@ -390,7 +389,7 @@ export default function SearchScreen() {
       if (def.key === 'terkurasi' && count === classifiedItems.length) {
         continue;
       }
-      if (def.key === 'semua' || count > 0) {
+      if (def.key === 'semua' || def.key === 'beracun' || count > 0) {
         result.push({
           key: def.key,
           label: def.label,
@@ -463,7 +462,6 @@ export default function SearchScreen() {
                 <Ionicons name="library-outline" size={13} color="#86efac" />
                 <Text style={styles.catalogPillText}>
                   {allHerbals.length} Spesies
-                  {curatedCount > 0 ? ` • ${curatedCount} Terkurasi` : ''}
                 </Text>
               </View>
             )}
@@ -537,6 +535,7 @@ export default function SearchScreen() {
                     }
                   />
                   <Text
+                    numberOfLines={1}
                     style={[
                       styles.chipText,
                       isToxicChip && !active && { color: '#fecaca' },

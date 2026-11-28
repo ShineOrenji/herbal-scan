@@ -23,17 +23,19 @@ import GlassView from './GlassView';
 import HerbalConfirmModal from './HerbalConfirmModal';
 import { C, HB, R } from './herbbot/theme';
 import { ChatBubble, ConfirmState } from './herbbot/types';
-import { sanitizeDisplayText } from './herbbot/utils';
+import { stripMarkdown } from './herbbot/utils';
 import { useHerbBotChat } from './herbbot/useHerbBotChat';
 import { useKeyboardVisible } from './herbbot/useKeyboardVisible';
 import HerbBotHeader from './herbbot/HerbBotHeader';
+import ChatWallpaper from './herbbot/ChatWallpaper';
 import HistoryPanel from './herbbot/HistoryPanel';
 import LoginGate from './herbbot/LoginGate';
 import MessageBubble from './herbbot/MessageBubble';
 import TypingIndicator from './herbbot/TypingIndicator';
 import ChatInputBar from './herbbot/ChatInputBar';
-import MessageActionsSheet from './herbbot/MessageActionsSheet';
-import { SuggestionChips, SuggestionList } from './herbbot/Suggestions';
+import MessageActionsDialog from './herbbot/MessageActionsDialog';
+import EmptyChat from './herbbot/EmptyChat';
+import { SuggestionChips } from './herbbot/Suggestions';
 
 interface HerbBotModalProps {
   visible: boolean;
@@ -90,6 +92,7 @@ export default function HerbBotModal({ visible, onClose, plant }: HerbBotModalPr
       setShowHistory(false);
       setSelectedMessage(null);
       setConfirmVisible(false);
+      setInput('');
       setRendered(true);
       translateY.setValue(screenHRef.current);
       dimOpacity.setValue(0);
@@ -115,12 +118,16 @@ export default function HerbBotModal({ visible, onClose, plant }: HerbBotModalPr
   // Tarik grabber/header ke bawah untuk menutup (seperti sheet iOS)
   const dragResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) => g.dy > 6 && g.dy > Math.abs(g.dx),
+      // Heading memegang sentuhan sejak awal → geser dari area mana pun (logo/judul/tombol) bisa menutup
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponderCapture: (_, g) => g.dy > 8 && g.dy > Math.abs(g.dx) * 1.2,
+      onMoveShouldSetPanResponder: (_, g) => g.dy > 8 && g.dy > Math.abs(g.dx) * 1.2,
+      onPanResponderTerminationRequest: () => false,
       onPanResponderMove: (_, g) => {
         if (g.dy > 0) translateY.setValue(g.dy);
       },
       onPanResponderRelease: (_, g) => {
-        if (g.dy > 110 || g.vy > 0.9) {
+        if (g.dy > 90 || g.vy > 0.7) {
           onCloseRef.current();
         } else {
           Animated.spring(translateY, { toValue: 0, friction: 9, useNativeDriver: true }).start();
@@ -200,20 +207,23 @@ export default function HerbBotModal({ visible, onClose, plant }: HerbBotModalPr
 
   const askDeleteMessage = (msg: ChatBubble) => {
     setSelectedMessage(null);
-    if (msg.id === 'welcome') return;
     if (typeof msg.id !== 'number') {
       chat.removeLocalMessage(msg.id);
       return;
     }
     const id = msg.id;
-    openConfirm({
-      variant: 'single',
-      title: 'Hapus Pesan Ini?',
-      description: 'Pesan yang dipilih akan dihapus permanen dari percakapan ini.',
-      confirmLabel: 'Ya, Hapus',
-      successMessage: 'Pesan dihapus',
-      onConfirm: () => chat.deleteMessage(id),
-    });
+    // iOS: tunggu dialog opsi selesai menutup sebelum membuka modal konfirmasi
+    const open = () =>
+      openConfirm({
+        variant: 'single',
+        title: 'Hapus Pesan Ini?',
+        description: 'Pesan yang dipilih akan dihapus permanen dari percakapan ini.',
+        confirmLabel: 'Ya, Hapus',
+        successMessage: 'Pesan dihapus',
+        onConfirm: () => chat.deleteMessage(id),
+      });
+    if (Platform.OS === 'ios') setTimeout(open, 320);
+    else open();
   };
 
   const runConfirm = async () => {
@@ -236,7 +246,7 @@ export default function HerbBotModal({ visible, onClose, plant }: HerbBotModalPr
 
   const shareSelected = async () => {
     if (!selectedMessage) return;
-    const text = sanitizeDisplayText(selectedMessage.text);
+    const text = stripMarkdown(selectedMessage.text);
     setSelectedMessage(null);
     try {
       await Share.share({ message: text });
@@ -251,9 +261,9 @@ export default function HerbBotModal({ visible, onClose, plant }: HerbBotModalPr
   };
 
   /* --------------------------------------- Render --------------------------------------- */
-  const onlyWelcome = chat.messages.length <= 1;
+  const isEmpty = chat.messages.length === 0 && !chat.sending;
   const showChips =
-    !onlyWelcome && chat.suggestions.length > 0 && !chat.sending && !chat.loadingThread;
+    !isEmpty && chat.suggestions.length > 0 && !chat.sending && !chat.loadingThread;
   const bottomPad = kbVisible ? 10 : Math.max(insets.bottom, 12);
   const lastIndex = chat.messages.length - 1;
 
@@ -276,7 +286,7 @@ export default function HerbBotModal({ visible, onClose, plant }: HerbBotModalPr
           <Pressable style={{ height: insets.top + 28, flexShrink: 1 }} onPress={onClose} />
 
           <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
-            {/* Latar kaca: memakai GlassView yang sama dengan layar lain */}
+            {/* Latar kaca (sama dengan layar lain) */}
             <GlassView
               radius={0}
               intensity={90}
@@ -284,8 +294,11 @@ export default function HerbBotModal({ visible, onClose, plant }: HerbBotModalPr
               style={StyleSheet.absoluteFill}
             />
 
+            {/* Wallpaper doodle ala WhatsApp — lapisan latar, hanya di layar chat */}
+            {chat.isAuthenticated && !(showHistory && !chat.isPlantMode) ? <ChatWallpaper /> : null}
+
             {/* Zona tarik: grabber + header */}
-            <View {...dragResponder.panHandlers}>
+            <View collapsable={false} {...dragResponder.panHandlers}>
               <View style={styles.grabberWrap}>
                 <View style={styles.grabber} />
               </View>
@@ -294,7 +307,7 @@ export default function HerbBotModal({ visible, onClose, plant }: HerbBotModalPr
                 isToxic={chat.isToxic}
                 isAuthenticated={chat.isAuthenticated}
                 isPlantMode={chat.isPlantMode}
-                canReset={chat.messages.length > 1}
+                canReset={chat.messages.length > 0}
                 historyOpen={showHistory && !chat.isPlantMode}
                 onNewChat={handleNewChat}
                 onToggleHistory={() => (showHistory ? setShowHistory(false) : openHistory())}
@@ -323,6 +336,13 @@ export default function HerbBotModal({ visible, onClose, plant }: HerbBotModalPr
                     <ActivityIndicator size="small" color={C.mint} />
                     <Text style={styles.loadingText}>Memuat percakapan…</Text>
                   </View>
+                ) : isEmpty ? (
+                  <EmptyChat
+                    greeting={chat.welcome.greeting}
+                    subtitle={chat.welcome.subtitle}
+                    suggestions={chat.suggestions}
+                    onPick={(q) => submit(q)}
+                  />
                 ) : (
                   <ScrollView
                     ref={scrollRef}
@@ -340,9 +360,7 @@ export default function HerbBotModal({ visible, onClose, plant }: HerbBotModalPr
                       <MessageBubble
                         key={String(msg.id)}
                         msg={msg}
-                        onLongPress={
-                          msg.id === 'welcome' ? undefined : () => setSelectedMessage(msg)
-                        }
+                        onLongPress={() => setSelectedMessage(msg)}
                         onRetry={
                           msg.isError && index === lastIndex && !chat.sending
                             ? () => chat.retry(msg)
@@ -352,10 +370,6 @@ export default function HerbBotModal({ visible, onClose, plant }: HerbBotModalPr
                     ))}
 
                     {chat.sending && <TypingIndicator />}
-
-                    {onlyWelcome && !chat.sending && chat.suggestions.length > 0 && (
-                      <SuggestionList items={chat.suggestions} onPick={(q) => submit(q)} />
-                    )}
                   </ScrollView>
                 )}
 
@@ -388,15 +402,16 @@ export default function HerbBotModal({ visible, onClose, plant }: HerbBotModalPr
           </View>
         ) : null}
 
-        {/* Opsi pesan: bottom sheet bergaya HerbalConfirmModal */}
-        <MessageActionsSheet
-          visible={Boolean(selectedMessage)}
-          preview={selectedMessage ? sanitizeDisplayText(selectedMessage.text) : ''}
-          onShare={shareSelected}
-          onDelete={() => selectedMessage && askDeleteMessage(selectedMessage)}
-          onCancel={() => setSelectedMessage(null)}
-        />
       </View>
+
+      {/* Opsi pesan: Modal sungguhan di tengah layar */}
+      <MessageActionsDialog
+        visible={Boolean(selectedMessage)}
+        preview={selectedMessage ? stripMarkdown(selectedMessage.text).replace(/\s+/g, ' ') : ''}
+        onShare={shareSelected}
+        onDelete={() => selectedMessage && askDeleteMessage(selectedMessage)}
+        onCancel={() => setSelectedMessage(null)}
+      />
 
       {/* Konfirmasi hapus / reset: komponen yang sama dengan layar Riwayat & Profil */}
       <HerbalConfirmModal

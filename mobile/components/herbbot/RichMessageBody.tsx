@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 2.5,
-    backgroundColor: 'C.mint',
+    backgroundColor: C.mint,
     marginTop: 9,
   },
   num: { color: C.mint, fontSize: 14.5, fontWeight: '800', lineHeight: 22, minWidth: 18 },
