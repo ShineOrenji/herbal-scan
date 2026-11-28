@@ -281,9 +281,17 @@ class HerbBotController extends Controller
     {
         $user = $request->user();
 
-        HerbBotSession::where('user_id', $user->id)
+        $sessionIds = HerbBotSession::where('user_id', $user->id)
             ->where('plant_slug', $slug)
-            ->delete();
+            ->pluck('id');
+
+        if ($sessionIds->isNotEmpty()) {
+            HerbBotMessage::whereIn('session_id', $sessionIds)->delete();
+            HerbBotSession::whereIn('id', $sessionIds)->delete();
+        }
+
+        // Bersihkan sisa pesan yatim (orphan) jika ada dari penghapusan lama
+        HerbBotMessage::whereNotIn('session_id', HerbBotSession::select('id'))->delete();
 
         return response()->json(['status' => 'success']);
     }
@@ -292,14 +300,19 @@ class HerbBotController extends Controller
     {
         $user = $request->user();
 
-        $deleted = HerbBotSession::where('user_id', $user->id)
-            ->whereNull('plant_slug')
+        $session = HerbBotSession::where('user_id', $user->id)
             ->where('id', $id)
-            ->delete();
+            ->first();
 
-        if (!$deleted) {
+        if (!$session) {
             return response()->json(['status' => 'error', 'message' => 'Riwayat tidak ditemukan.'], 404);
         }
+
+        HerbBotMessage::where('session_id', $session->id)->delete();
+        $session->delete();
+
+        // Bersihkan sisa pesan yatim (orphan) jika ada dari penghapusan lama
+        HerbBotMessage::whereNotIn('session_id', HerbBotSession::select('id'))->delete();
 
         return response()->json(['status' => 'success']);
     }
